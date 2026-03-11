@@ -1,20 +1,33 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS builder
 
 RUN apt-get update && apt-get install -y \
     build-essential \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download embedding model at build time
-RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
+# Install into a local directory (not system)
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Pre-download fastembed model into builder stage
+RUN PYTHONPATH=/install/lib/python3.11/site-packages \
+    python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
+
+# ---- Final stage (clean, no build tools) ----
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy only installed packages from builder
+COPY --from=builder /install /usr/local
+# Copy cached fastembed model
+COPY --from=builder /root/.cache /root/.cache
 
 COPY . .
 
 EXPOSE 8000
 
-# Point uvicorn to the correct module path
 CMD ["uvicorn", "working.endpoints.agent_api:app", "--host", "0.0.0.0", "--port", "8000"]
