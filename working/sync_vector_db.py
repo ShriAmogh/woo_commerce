@@ -4,7 +4,7 @@ import re
 from woocommerce import API
 from qdrant_client import QdrantClient
 from qdrant_client import models
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Configurations ---
 COLLECTION_NAME = "products"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 
 # Qdrant Setup
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
@@ -50,7 +50,7 @@ def sync_products():
     # 1. Initialize Clients
     wcapi = get_wcapi()
     qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-    model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    model = TextEmbedding(EMBEDDING_MODEL_NAME)
     
     # 2. Recreate Collection (Optional: for fresh start)
     # Check if collection exists, if not create it
@@ -124,7 +124,8 @@ def sync_products():
             
             # Text to embed
             text_content = f"{name}. {description}"
-            embedding = model.encode(text_content).tolist()
+            # fastembed.embed returns a generator, so we wrap it in a list
+            embedding = list(model.embed([text_content]))[0].tolist()
             
             all_points.append(
                 models.PointStruct(
@@ -169,7 +170,8 @@ def sync_products():
                         
                         # Specialized embedding for variation
                         v_text_content = f"{v_name}. {v_description}"
-                        v_embedding = model.encode(v_text_content).tolist()
+                        # fastembed.embed returns a generator, so we wrap it in a list
+                        v_embedding = list(model.embed([v_text_content]))[0].tolist()
                         
                         all_points.append(
                             models.PointStruct(

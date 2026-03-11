@@ -3,7 +3,7 @@ import logging
 import json
 from qdrant_client import QdrantClient
 from qdrant_client import models
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from fastembed import TextEmbedding
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -14,8 +14,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Configurations ---
 COLLECTION_NAME = "products"
-BI_ENCODER_MODEL = "all-MiniLM-L6-v2"
-CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+BI_ENCODER_MODEL = "BAAI/bge-small-en-v1.5"
+# FastEmbed doesn't have a direct CrossEncoder equivalent in the same package.
+# We will rely on Bi-Encoder scores for now or use a different reranking approach later if needed.
 
 # Qdrant Setup
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
@@ -23,7 +24,6 @@ QDRANT_URL = os.getenv("QDRANT_CLUSTER_KEY")
 
 # Initialize models (cached)
 _bi_encoder = None
-_cross_encoder = None
 _qdrant_client = None
 
 def get_qdrant_client():
@@ -33,14 +33,11 @@ def get_qdrant_client():
     return _qdrant_client
 
 def get_models():
-    global _bi_encoder, _cross_encoder
+    global _bi_encoder
     if _bi_encoder is None:
         logging.info(f"Loading Bi-Encoder: {BI_ENCODER_MODEL}")
-        _bi_encoder = SentenceTransformer(BI_ENCODER_MODEL)
-    if _cross_encoder is None:
-        logging.info(f"Loading Cross-Encoder: {CROSS_ENCODER_MODEL}")
-        _cross_encoder = CrossEncoder(CROSS_ENCODER_MODEL)
-    return _bi_encoder, _cross_encoder
+        _bi_encoder = TextEmbedding(BI_ENCODER_MODEL)
+    return _bi_encoder
 
 def search_products_vector(query: str, max_price: float = None, category_id: int = None, in_stock: bool = True, top_k: int = 5):
     """
@@ -50,10 +47,11 @@ def search_products_vector(query: str, max_price: float = None, category_id: int
     
     try:
         client = get_qdrant_client()
-        bi_encoder, cross_encoder = get_models()
+        bi_encoder = get_models()
         
         # 1. Generate Query Vector
-        query_vector = bi_encoder.encode(query).tolist()
+        # fastembed.embed returns a generator, so we wrap it in a list
+        query_vector = list(bi_encoder.embed([query]))[0].tolist()
         
         # 2. Build Filters
         must_conditions = []
@@ -68,49 +66,21 @@ def search_products_vector(query: str, max_price: float = None, category_id: int
             
         filter_obj = models.Filter(must=must_conditions) if must_conditions else None
         
-        # 3. Retrieve Candidates from Qdrant
+        # 3. Retrieve Results from Qdrant
         search_results = client.query_points(
             collection_name=COLLECTION_NAME,
             query=query_vector,
             query_filter=filter_obj,
-            limit=20 # Candidate pool for reranking
+            limit=top_k
         ).points
         
         if not search_results:
             return []
             
-        # 4. Re-rank results with Cross-Encoder
-        # Prepare (query, doc) pairs
-        candidates = []
-        for res in search_results:
-            payload = res.payload
-            # We use name + description for evaluation
-            doc_text = f"{payload.get('name')}. {payload.get('description')}"
-            candidates.append({
-                "payload": payload,
-                "doc_text": doc_text,
-                "score": res.score # Initial semantic score
-            })
-            
-        # Compute Cross-Encoder scores
-        model_inputs = [[query, c["doc_text"]] for c in candidates]
-        cross_scores = cross_encoder.predict(model_inputs)
-        
-        # Assign cross-scores
-        for i, score in enumerate(cross_scores):
-            candidates[i]["cross_score"] = float(score)
-            
-        # Sort by cross-score descending
-        candidates.sort(key=lambda x: x["cross_score"], reverse=True)
-        
-        # 5. Format and Return Top K (Applying Threshold)
+        # 4. Format and Return Results
         final_results = []
-        for c in candidates[:top_k]:
-            if c["cross_score"] <= 2:
-                # Results are sorted, so we can stop if we hit a score below the threshold
-                break
-                
-            p = c["payload"]
+        for res in search_results:
+            p = res.payload
             final_results.append({
                 "id": p.get("id"),
                 "name": p.get("name"),
@@ -121,7 +91,7 @@ def search_products_vector(query: str, max_price: float = None, category_id: int
                 "is_variation": p.get("is_variation"),
                 "parent_id": p.get("parent_id"),
                 "attributes": p.get("attributes"),
-                "relevance_score": c["cross_score"]
+                "relevance_score": float(res.score)
             })
             
         return final_results
@@ -163,41 +133,27 @@ def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
             } for p in res]
 
         # 3. Case: Brand Filter + Semantic Query
-        bi_encoder, cross_encoder = get_models()
-        query_vector = bi_encoder.encode(query).tolist()
+        bi_encoder = get_models()
+        query_vector = list(bi_encoder.embed([query]))[0].tolist()
         
         search_results = client.query_points(
             collection_name=COLLECTION_NAME,
             query=query_vector,
             query_filter=filter_obj,
-            limit=20
+            limit=top_k
         ).points
         
         if not search_results:
             return []
             
-        # Re-rank with Cross-Encoder
-        candidates = []
-        for res in search_results:
-            payload = res.payload
-            doc_text = f"{payload.get('name')}. {payload.get('description')}"
-            candidates.append({"payload": payload, "doc_text": doc_text})
-            
-        model_inputs = [[query, c["doc_text"]] for c in candidates]
-        cross_scores = cross_encoder.predict(model_inputs)
-        
-        for i, score in enumerate(cross_scores):
-            candidates[i]["cross_score"] = float(score)
-            
-        candidates.sort(key=lambda x: x["cross_score"], reverse=True)
-        
         return [{
-            "id": c["payload"].get("id"),
-            "name": c["payload"].get("name"),
-            "price": c["payload"].get("price"),
-            "in_stock": c["payload"].get("in_stock"),
-            "image": c["payload"].get("image")
-        } for c in candidates[:top_k] if c["cross_score"] > 2] # Score threshold
+            "id": res.payload.get("id"),
+            "name": res.payload.get("name"),
+            "price": res.payload.get("price"),
+            "in_stock": res.payload.get("in_stock"),
+            "image": res.payload.get("image"),
+            "relevance_score": float(res.score)
+        } for res in search_results]
         
     except Exception as e:
         logging.error(f"Error in search_products_by_brand: {e}")
@@ -262,8 +218,8 @@ def get_product_details_vector(product_id_or_name):
                 return res[0].payload
         
         # 2. Fallback to semantic search for name
-        bi_encoder, _ = get_models()
-        query_vector = bi_encoder.encode(str(product_id_or_name)).tolist()
+        bi_encoder = get_models()
+        query_vector = list(bi_encoder.embed([str(product_id_or_name)]))[0].tolist()
         
         res = client.query_points(
             collection_name=COLLECTION_NAME,
