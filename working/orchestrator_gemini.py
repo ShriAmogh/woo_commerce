@@ -40,13 +40,19 @@ class GeminiOrchestrator:
         logging.info(f"🤖 Model: {self.model_id}")
         self.system_instruction = system_prompt
         
-        self.mcp = WooCommerceMCPClient()
-        self.mcp_actions = actions_mcp.MCPActions(self.mcp)
+        try:
+            self.mcp = WooCommerceMCPClient()
+            self.mcp_actions = actions_mcp.MCPActions(self.mcp)
+            mcp_available = True
+            logging.info("✅ MCP connected")
+        except Exception as e:
+            logging.warning(f"⚠️ MCP unavailable, falling back to REST: {e}")
+            mcp_available = False
         
         self.available_tools = {
-            "list_products": self.mcp_actions.list_products,
+            "list_products": self.mcp_actions.list_products if mcp_available else actions.list_products,
             "search_products": actions_db.search_products_vector,
-            "get_product_details": self.mcp_actions.get_product_details,
+            "get_product_details": self.mcp_actions.get_product_details if mcp_available else actions.get_product_details,
             "get_store_info": actions.get_store_info,
             "list_categories": actions.list_categories,
             "get_product_variations": actions.get_product_variations,
