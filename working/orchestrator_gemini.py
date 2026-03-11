@@ -3,7 +3,10 @@ import logging
 import os
 import requests
 from google import genai
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables (search for .env in project root if present)
+load_dotenv(find_dotenv())
 from system_prompt_gemini import system_prompt, summarizer_prompt
 from actions import actions, actions_db, actions_mcp
 from mcp_client import WooCommerceMCPClient
@@ -18,7 +21,7 @@ class GeminiOrchestrator:
         gcp_location = os.getenv("GOOGLE_CLOUD_LOCATION", "asia-south1")
         gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-        if gcp_project and gcp_creds:
+        if gcp_project and gcp_creds and os.path.exists(gcp_creds):
             self.api_mode = f"Vertex AI (project={gcp_project}, location={gcp_location})"
             self.client = genai.Client(
                 vertexai=True,
@@ -26,9 +29,9 @@ class GeminiOrchestrator:
                 location=gcp_location,
             )
         else:
-            self.api_key = os.getenv("GEMINI_API_KEY_SOMESH")
+            self.api_key = os.getenv("GEMINI_API_KEY_SOMESH") or os.getenv("GEMINI_API_KEY")
             if not self.api_key:
-                raise ValueError("No Vertex AI or Gemini API key found in environment variables.")
+                raise ValueError("No valid Vertex AI credentials or Gemini API key (GEMINI_API_KEY_SOMESH or GEMINI_API_KEY) found.")
             self.api_mode = "Google AI API Key (fallback)"
             self.client = genai.Client(api_key=self.api_key)
 
