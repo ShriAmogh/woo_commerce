@@ -50,9 +50,9 @@ class GeminiOrchestrator:
             mcp_available = False
         
         self.available_tools = {
-            "list_products": self.mcp_actions.list_products if mcp_available else actions.list_products,
+            "list_products": actions.list_products,
             "search_products": actions_db.search_products_vector,
-            "get_product_details": self.mcp_actions.get_product_details if mcp_available else actions.get_product_details,
+            "get_product_details": actions.get_product_details,
             "get_store_info": actions.get_store_info,
             "list_categories": actions.list_categories,
             "get_product_variations": actions.get_product_variations,
