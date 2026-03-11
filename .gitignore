@@ -8,3 +8,4 @@ vector_db/
 vertex_service_account.json
 *.json
 !package.json
+.DS_Store
