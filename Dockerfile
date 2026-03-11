@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Pre-download fastembed model into builder stage
 RUN PYTHONPATH=/install/lib/python3.11/site-packages \
-    python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
+    python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')"
 
 # ---- Final stage (clean, no build tools) ----
 FROM python:3.11-slim
