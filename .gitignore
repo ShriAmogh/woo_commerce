@@ -1,0 +1,10 @@
+.venv
+.env
+__pycache__
+woo_mcp/
+main_bypass.py
+phi3/
+vector_db/
+vertex_service_account.json
+*.json
+!package.json
