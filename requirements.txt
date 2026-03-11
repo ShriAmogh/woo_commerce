@@ -3,7 +3,7 @@ uvicorn
 google-genai
 woocommerce
 qdrant-client
-sentence-transformers
+fastembed
 python-dotenv
 requests
 pydantic
