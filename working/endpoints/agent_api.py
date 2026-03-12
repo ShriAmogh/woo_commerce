@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional
 import logging
 import sys
 import os
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="WooCommerce Chatbot Agent API")
 
-# Enable CORS for the frontend widget widget
+# Enable CORS for the frontend widget
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,37 +24,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the orchestrator globally so session memory persists in the python process
-orchestrator = GeminiOrchestrator()
+# Per-session orchestrator registry
+# Each visitor gets their own GeminiOrchestrator with isolated memory
+sessions: dict = {}
 
 class SessionContext(BaseModel):
-    is_logged_in: bool
-    session_id: str
+    is_logged_in: bool = False
+    session_id: Optional[str] = ""
     user_id: Optional[int] = None
+    wc_nonce: Optional[str] = ""
 
 class ChatRequest(BaseModel):
     message: str
-    session_context: SessionContext
-    
+    session_context: SessionContext = SessionContext()
+
 class ChatResponse(BaseModel):
     response: str
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
-    
+    return {
+        "status": "ok",
+        "active_sessions": len(sessions),
+        "woo_url": os.getenv("WOO_URL", "not set")
+    }
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(req: ChatRequest):
     try:
-        # Pass both input and context to orchestrator
-        context_dict = req.session_context.dict()
-        reply = orchestrator.handle_query(user_input=req.message, session_context=context_dict)
+        session_id = req.session_context.session_id or "default"
+
+        if session_id not in sessions:
+            logger.info(f"Creating new orchestrator for session: {session_id}")
+            sessions[session_id] = GeminiOrchestrator()
+
+        context_dict = req.session_context.model_dump()
+        reply = sessions[session_id].handle_query(
+            user_input=req.message,
+            session_context=context_dict
+        )
         return ChatResponse(response=reply)
     except Exception as e:
         logger.error(f"Error handling chat request: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/session/{session_id}")
+async def clear_session(session_id: str):
+    """Clear a specific session — useful when visitor logs out"""
+    if session_id in sessions:
+        del sessions[session_id]
+        return {"status": "cleared", "session_id": session_id}
+    return {"status": "not_found", "session_id": session_id}
+
 if __name__ == "__main__":
     import uvicorn
-    # Start the FastAPI app
     uvicorn.run(app, host="0.0.0.0", port=8000)
