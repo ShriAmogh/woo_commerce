@@ -76,11 +76,17 @@ def get_wcapi():
 def list_products(min_price: str = None, max_price: str = None, category_id: str = None):
     """
     Retrieves products from the store, optionally filtered by price range or category.
-    Args:
-        min_price: Minimum price (as string).
-        max_price: Maximum price (as string).
-        category_id: Category ID (as string).
     """
+    # Resolve category name to ID if needed
+    if category_id and isinstance(category_id, str) and not category_id.isdigit():
+        logging.info(f"Attempting to resolve category name '{category_id}' to an ID...")
+        categories = list_categories()
+        if isinstance(categories, list):
+            for cat in categories:
+                if cat.get("name", "").lower() == category_id.lower() or cat.get("slug", "").lower() == category_id.lower():
+                    category_id = str(cat["id"])
+                    break
+
     logging.info(f"Fetching products (min: {min_price}, max: {max_price}, cat: {category_id})...")
     wcapi = get_wcapi()
     params = {}
@@ -197,8 +203,11 @@ def resolve_product_id(query):
     
     return None
 
-def get_product_details(product_id: int):
-    """Gets detailed information for a specific product by ID."""
+def get_product_details(product_id_or_name):
+    """Gets detailed information for a specific product by ID or Name."""
+    product_id = resolve_product_id(product_id_or_name)
+    if not product_id:
+        return {"error": f"Could not find product: {product_id_or_name}"}
     logging.info(f"Fetching details for product ID: {product_id}")
     wcapi = get_wcapi()
     try:
@@ -269,8 +278,11 @@ def get_products_by_brand(brand_slug: str):
         logging.error(f"Error in get_products_by_brand: {e}")
         return {"error": str(e)}
 
-def get_product_variations(product_id: int):
-    """Retrieves all variations for a specific variable product."""
+def get_product_variations(product_id_or_name):
+    """Retrieves all variations for a specific variable product ID or Name."""
+    product_id = resolve_product_id(product_id_or_name)
+    if not product_id:
+        return {"error": f"Could not find product: {product_id_or_name}"}
     logging.info(f"Fetching variations for product ID: {product_id}")
     wcapi = get_wcapi()
     try:
@@ -284,8 +296,11 @@ def get_product_variations(product_id: int):
         logging.error(f"Exception in get_product_variations: {e}")
         return {"error": str(e)}
 
-def check_stock_status(product_id: int):
-    """Checks the stock status and quantity for a specific product."""
+def check_stock_status(product_id_or_name):
+    """Checks the stock status and quantity for a specific product ID or Name."""
+    product_id = resolve_product_id(product_id_or_name)
+    if not product_id:
+        return {"error": f"Could not find product: {product_id_or_name}"}
     logging.info(f"Checking stock for product ID: {product_id}")
     product = get_product_details(product_id)
     if "error" in product:
