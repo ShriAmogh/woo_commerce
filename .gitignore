@@ -9,3 +9,5 @@ vertex_service_account.json
 *.json
 !package.json
 .DS_Store
+working/app_gemini.log
+imp.txt
