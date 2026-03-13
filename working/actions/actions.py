@@ -62,7 +62,11 @@ def get_wcapi():
 
     if not url.startswith(("http://", "https://")):
         url = f"https://{url}"
-        
+
+    # Live Link Basic Auth (only needed when using localsite.io tunnel)
+    live_user = os.getenv("WOO_LIVE_LINK_USER", "")
+    live_pass = os.getenv("WOO_LIVE_LINK_PASS", "")
+
     return API(
         url=url,
         consumer_key=consumer_key,
@@ -70,7 +74,8 @@ def get_wcapi():
         wp_api=True,
         version="wc/v3",
         timeout=15,
-        verify_ssl=False
+        verify_ssl=False,
+        auth=(live_user, live_pass) if live_user else None
     )
 
 def list_products(min_price: str = None, max_price: str = None, category_id: str = None):
