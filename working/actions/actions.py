@@ -421,9 +421,10 @@ def add_to_cart(product_id, quantity: int = 1, session_id: str = "default"):
     response = woo_put(f"orders/{order_id}", {"line_items": update_lines})
     if response.status_code == 200:
         o = response.json()
+        base_url = _get_woo_config()[0]
         return {
             "Currency":     o.get("currency"),
-            "checkout_url": o.get("payment_url"),
+            "checkout_url": f"{base_url}/checkout/",   # real checkout page
             "line_items": [
                 {
                     "line_id":    item.get("id"),
@@ -467,9 +468,10 @@ def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"
     response = woo_put(f"orders/{order_id}", {"line_items": update_lines})
     if response.status_code == 200:
         o = response.json()
+        base_url = _get_woo_config()[0]
         return {
             "Currency":     o.get("currency"),
-            "checkout_url": o.get("payment_url"),
+            "checkout_url": f"{base_url}/checkout/",   # real checkout page
             "line_items": [
                 {
                     "line_id":    item.get("id"),
@@ -495,9 +497,10 @@ def apply_coupon(coupon_code: str, session_id: str = "default"):
     response = woo_put(f"orders/{order_id}", {"coupon_lines": [{"code": coupon_code}]})
     if response.status_code == 200:
         o = response.json()
+        base_url = _get_woo_config()[0]
         return {
             "Currency":     o.get("currency"),
-            "checkout_url": o.get("payment_url"),
+            "checkout_url": f"{base_url}/checkout/",   # real checkout page
             "coupon_lines": o.get("coupon_lines", []),
             "total":        o.get("total"),
         }
