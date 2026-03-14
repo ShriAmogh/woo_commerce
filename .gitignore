@@ -11,3 +11,7 @@ vertex_service_account.json
 .DS_Store
 working/app_gemini.log
 imp.txt
+main_phi3.py
+orchestrator_phi3.py
+start-phi3.sh
+endpoints/agent_api_phi3.py
