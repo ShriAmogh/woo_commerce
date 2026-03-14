@@ -1,11 +1,11 @@
 import json
 import logging
+import re
 import os
 import requests
 from google import genai
 from dotenv import load_dotenv, find_dotenv
 
-# Load environment variables (search for .env in project root if present)
 load_dotenv(find_dotenv())
 from system_prompt_gemini import system_prompt, summarizer_prompt
 from actions import actions, actions_db, actions_mcp
@@ -16,121 +16,194 @@ load_dotenv()
 
 class GeminiOrchestrator:
     def __init__(self, model_id="gemini-2.5-flash"):
-        # Try Vertex AI (service account) first, then fall back to API key
-        gcp_project = os.getenv("GOOGLE_CLOUD_PROJECT")
+        gcp_project  = os.getenv("GOOGLE_CLOUD_PROJECT")
         gcp_location = os.getenv("GOOGLE_CLOUD_LOCATION", "asia-south1")
-        gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        gcp_creds    = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
         if gcp_project and gcp_creds and os.path.exists(gcp_creds):
             self.api_mode = f"Vertex AI (project={gcp_project}, location={gcp_location})"
-            self.client = genai.Client(
-                vertexai=True,
-                project=gcp_project,
-                location=gcp_location,
-            )
+            self.client   = genai.Client(vertexai=True, project=gcp_project, location=gcp_location)
         else:
             self.api_key = os.getenv("GEMINI_API_KEY_SOMESH") or os.getenv("GEMINI_API_KEY")
             if not self.api_key:
-                raise ValueError("No valid Vertex AI credentials or Gemini API key (GEMINI_API_KEY_SOMESH or GEMINI_API_KEY) found.")
+                raise ValueError("No valid Vertex AI credentials or Gemini API key found.")
             self.api_mode = "Google AI API Key (fallback)"
-            self.client = genai.Client(api_key=self.api_key)
+            self.client   = genai.Client(api_key=self.api_key)
 
-        self.model_id = model_id
-        logging.info(f"🔧 API: {self.api_mode}")
-        logging.info(f"🤖 Model: {self.model_id}")
+        self.model_id           = model_id
         self.system_instruction = system_prompt
-        
+        logging.info(f"🔧 API: {self.api_mode} | 🤖 Model: {self.model_id}")
+
         try:
-            self.mcp = WooCommerceMCPClient()
+            self.mcp         = WooCommerceMCPClient()
             self.mcp_actions = actions_mcp.MCPActions(self.mcp)
-            mcp_available = True
             logging.info("✅ MCP connected")
         except Exception as e:
             logging.warning(f"⚠️ MCP unavailable, falling back to REST: {e}")
-            mcp_available = False
-        
+
         self.available_tools = {
-            "list_products": actions.list_products,
-            "search_products": actions_db.search_products_vector,
-            "get_product_details": actions.get_product_details,
-            "get_store_info": actions.get_store_info,
-            "list_categories": actions.list_categories,
+            "list_products":          actions.list_products,
+            "search_products":        actions_db.search_products_vector,
+            "get_product_details":    actions.get_product_details,
+            "get_store_info":         actions.get_store_info,
+            "list_categories":        actions.list_categories,
             "get_product_variations": actions.get_product_variations,
-            "list_brands": actions.list_brands,
-            "get_products_by_brand": actions.get_products_by_brand,
+            "list_brands":            actions.list_brands,
+            "get_products_by_brand":  actions.get_products_by_brand,
             "search_products_by_brand": search_products_by_brand,
-            "check_stock_status": actions.check_stock_status,
-            "view_cart": actions.view_cart,
-            "add_to_cart": actions.add_to_cart,
-            "remove_from_cart": actions.remove_from_cart,
-            "apply_coupon": actions.apply_coupon
+            "check_stock_status":     actions.check_stock_status,
+            "view_cart":              actions.view_cart,
+            "add_to_cart":            actions.add_to_cart,
+            "remove_from_cart":       actions.remove_from_cart,
+            "apply_coupon":           actions.apply_coupon,
         }
-        
+
         self.AUTHENTICATED_TOOLS = {"view_cart", "add_to_cart", "remove_from_cart", "apply_coupon"}
-
-        self.store_url = os.getenv("WOO_URL", "Store")
+        self.store_url  = os.getenv("WOO_URL", "Store")
         self.store_name = self.store_url.split("//")[-1].split(".")[0]
-        self.history = [] # Gemini SDK handles history differently, but we'll keep a list of parts
-        self.context = {"last_products": [], "categories": [], "cart": []} # Structured session memory
+        self.history    = []
+        self.context    = {"last_products": [], "categories": [], "brands": [], "cart": []}
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # URL cleanup — Gemini wraps underscored URLs in __ markdown bold
+    # e.g. [text](__https://url__) → [text](https://url)
+    # ─────────────────────────────────────────────────────────────────────────
+    def _clean_urls(self, text: str) -> str:
+        if not text:
+            return text
+
+        # Fix [text](__url__) → [text](url)
+        text = re.sub(r'\[([^\]]+)\]\(__+([^)]+?)__+\)', r'[\1](\2)', text)
+
+        # Fix [text](url)? or [text](url)) — stray trailing bracket/paren
+        text = re.sub(r'\[([^\]]+)\]\((https?://[^)]+?)\)+\)?', r'[\1](\2)', text)
+
+        # Fix raw __https://...__ outside of markdown links
+        text = re.sub(r'__+(https?://[^\s_]+?)__+', r'\1', text)
+
+        # Fix trailing ) or ? after closing paren in markdown links
+        text = re.sub(r'\]\((https?://[^)]+?)\)[)?]+', lambda m: f']({m.group(1).rstrip(")?/")})', text)
+
+        # Clean up any remaining __ wrapping around URLs inside parens
+        text = re.sub(r'\(_{1,2}(https?://[^)]+?)_{1,2}\)', r'(\1)', text)
+
+        return text
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Gemini router call
+    # ─────────────────────────────────────────────────────────────────────────
     def _call_gemini(self, user_input: str, session_context: dict = None):
-        """Helper to invoke Gemini with history and context."""
-        
-        auth_status = "User is logged in." if session_context and session_context.get("is_logged_in") else "User is a GUEST (not logged in). They must log in to use Cart tools."
-        session_info = f"\n\nCURRENT SESSION CONTEXT:\n{auth_status}"
-        
-        prompt_with_context = self.system_instruction + session_info + f"\n\nContext block:\n{json.dumps(self.context, indent=2)}\n\nPlease ensure your tool calls adhere to this context exactly."
-        
+        auth_status = (
+            "User is logged in."
+            if session_context and session_context.get("is_logged_in")
+            else "User is a GUEST (not logged in). They must log in to use Cart tools."
+        )
+        prompt = (
+            self.system_instruction
+            + f"\n\nCURRENT SESSION CONTEXT:\n{auth_status}"
+            + f"\n\nContext block:\n{json.dumps(self.context, indent=2)}"
+            + "\n\nAdhere to this context exactly."
+        )
+
         history_for_gemini = self.history + [{"role": "user", "parts": [{"text": user_input}]}]
-        
+
         try:
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config={
-                    'system_instruction': prompt_with_context,
-                    'response_mime_type': 'application/json'
+                    'system_instruction': prompt,
+                    'response_mime_type': 'application/json',
                 },
-                contents=history_for_gemini
+                contents=history_for_gemini,
             )
             return response.text
         except Exception as e:
             logging.error(f"Gemini API Error: {e}")
             return None
 
-    def _summarize_results(self, user_query, tool_results):
-        """Second pass to convert raw JSON into a friendly response."""
+    # ─────────────────────────────────────────────────────────────────────────
+    # Summarizer call — converts raw tool JSON to friendly reply
+    # ─────────────────────────────────────────────────────────────────────────
+    def _summarize_results(self, user_query: str, tool_results):
         try:
-            summarizer_input = f"User Request: {user_query}\n\nTool Results (JSON):\n{json.dumps(tool_results, indent=2)}"
-            
+            summarizer_input = (
+                f"User Request: {user_query}\n\n"
+                f"Tool Results (JSON):\n{json.dumps(tool_results, indent=2, ensure_ascii=False)}"
+            )
+
             response = self.client.models.generate_content(
                 model=self.model_id,
                 config={
                     'system_instruction': summarizer_prompt,
-                    'temperature': 0.3
+                    'temperature': 0.2,
                 },
-                contents=[{"role": "user", "parts": [{"text": summarizer_input}]}]
+                contents=[{"role": "user", "parts": [{"text": summarizer_input}]}],
             )
-            return response.text
+            raw = response.text or ""
+
+            # Always clean URLs — Gemini loves adding __ around them
+            return self._clean_urls(raw)
+
         except Exception as e:
             logging.error(f"Summarization Error: {e}")
-            return json.dumps(tool_results, indent=2)
+            # Fallback — return clean JSON, never raw with __ URLs
+            return json.dumps(tool_results, indent=2, ensure_ascii=False)
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Context updater
+    # ─────────────────────────────────────────────────────────────────────────
+    def _update_context(self, tool_name: str, result):
+        if tool_name in ["list_products", "search_products", "get_product_details",
+                         "get_products_by_brand", "search_products_by_brand"]:
+            items = result if isinstance(result, list) else [result] if isinstance(result, dict) else []
+            for item in items:
+                if isinstance(item, dict) and "id" in item and "name" in item:
+                    self.context["last_products"] = [
+                        p for p in self.context["last_products"] if p["id"] != item["id"]
+                    ]
+                    self.context["last_products"].append({"id": item["id"], "name": item["name"]})
+            self.context["last_products"] = self.context["last_products"][-10:]
+
+        elif tool_name in ["view_cart", "add_to_cart", "remove_from_cart"]:
+            if isinstance(result, dict) and "line_items" in result:
+                self.context["cart"] = [
+                    {"product_id": i.get("product_id"), "qty": i.get("quantity")}
+                    for i in result["line_items"]
+                ]
+            elif isinstance(result, dict) and result.get("message") == "Cart is empty.":
+                self.context["cart"] = []
+
+        elif tool_name == "list_categories":
+            if isinstance(result, list):
+                self.context["categories"] = [
+                    {"id": c.get("id"), "name": c.get("name")} for c in result
+                ]
+
+        elif tool_name == "list_brands":
+            if isinstance(result, list):
+                self.context["brands"] = [
+                    {"id": b.get("id"), "name": b.get("name"), "slug": b.get("slug")} for b in result
+                ]
+
+        logging.info(f"Updated Session Memory: {self.context}")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Main handler
+    # ─────────────────────────────────────────────────────────────────────────
     def handle_query(self, user_input: str, session_context: dict = None):
-        """Sends user input to Gemini and handles manual tool calling."""
-        logging.info(f"User query (Gemini): {user_input} | Session: {session_context}")
-        
-        # 1. Initial Call to Gemini
+        logging.info(f"User query: {user_input} | Session: {session_context}")
+
+        # 1. Router call
         raw_response = self._call_gemini(user_input, session_context)
-        
         if not raw_response:
             return "Gemini API is not responding."
 
-        logging.info(f"Gemini Intent/Direct Response Raw: {raw_response}")
+        logging.info(f"Gemini raw response: {raw_response}")
 
         try:
             data = json.loads(raw_response)
-            
-            # 2a. Handle Multi-Tool Call
+
+            # ── Multi-tool ─────────────────────────────────────────────────
             if "tools" in data and isinstance(data["tools"], list):
                 all_results = {}
                 for i, call in enumerate(data["tools"]):
@@ -138,104 +211,73 @@ class GeminiOrchestrator:
                     t_args = call.get("args", {})
                     if not t_name or t_name not in self.available_tools:
                         continue
-                    logging.info(f"Gemini calling tool (multi {i+1}): {t_name} with args: {t_args}")
-                    
+                    logging.info(f"Multi-tool [{i+1}]: {t_name} args={t_args}")
+
                     if t_name in self.AUTHENTICATED_TOOLS:
                         if not (session_context and session_context.get("is_logged_in")):
-                            all_results[f"{i+1}_{t_name}"] = {"error": "Authentication required. Please ask the user to log in first."}
+                            all_results[f"{i+1}_{t_name}"] = {"error": "Login required."}
                             continue
-                        else:
-                            t_args["session_id"] = session_context.get("session_id", "default")
-                        
+                        t_args["session_id"] = session_context.get("session_id", "default")
+
                     try:
                         res = self.available_tools[t_name](**t_args)
+                        self._update_context(t_name, res)
                         all_results[f"{i+1}_{t_name}"] = res
                     except Exception as e:
-                        logging.error(f"Multi-tool error on {t_name}: {e}")
+                        logging.error(f"Multi-tool error {t_name}: {e}")
                         all_results[f"{i+1}_{t_name}"] = {"error": str(e)}
 
                 if all_results:
-                    # Update context for each tool call result if applicable (simplified here)
-                    # For multi-tool, we just summarize all at once
-                    friendly_response = self._summarize_results(user_input, all_results)
-                    
-                    self.history.append({"role": "user", "parts": [{"text": user_input}]})
-                    self.history.append({"role": "model", "parts": [{"text": friendly_response}]})
-                    return friendly_response
-            
-            # 2b. Handle Single Tool Call
+                    friendly = self._summarize_results(user_input, all_results)
+                    self.history.append({"role": "user",  "parts": [{"text": user_input}]})
+                    self.history.append({"role": "model", "parts": [{"text": friendly}]})
+                    return friendly
+
+            # ── Single tool ────────────────────────────────────────────────
             tool_name = data.get("tool")
             if tool_name:
                 args = data.get("args", {})
-                
+
                 if tool_name not in self.available_tools:
-                    return f"Error: The model tried to call a non-existent tool: {tool_name}."
-                
-                logging.info(f"Gemini calling tool: {tool_name} with args: {args}")
-                
+                    return f"Error: unknown tool '{tool_name}'."
+
+                logging.info(f"Tool: {tool_name} args={args}")
+
                 if tool_name in self.AUTHENTICATED_TOOLS:
                     if not (session_context and session_context.get("is_logged_in")):
-                        res = {"error": "Authentication required. Please ask the user to log in first."}
-                        friendly_response = self._summarize_results(user_input, {tool_name: res})
-                        self.history.append({"role": "user", "parts": [{"text": user_input}]})
-                        self.history.append({"role": "model", "parts": [{"text": friendly_response}]})
-                        return friendly_response
-                    else:
-                        args["session_id"] = session_context.get("session_id", "default")
-                
+                        res      = {"error": "Login required to use cart features."}
+                        friendly = self._summarize_results(user_input, {tool_name: res})
+                        self.history.append({"role": "user",  "parts": [{"text": user_input}]})
+                        self.history.append({"role": "model", "parts": [{"text": friendly}]})
+                        return friendly
+                    args["session_id"] = session_context.get("session_id", "default")
+
                 try:
-                    tool_func = self.available_tools[tool_name]
-                    result = tool_func(**args)
-                    
-                    # Store IDs in Context Dictionary
-                    if tool_name in ["list_products", "search_products", "get_product_details"]:
-                        items_to_add = result if isinstance(result, list) else [result] if isinstance(result, dict) else []
-                        for item in items_to_add:
-                            if isinstance(item, dict) and "id" in item and "name" in item:
-                                self.context["last_products"] = [p for p in self.context["last_products"] if p["id"] != item["id"]]
-                                self.context["last_products"].append({"id": item["id"], "name": item["name"]})
-                        self.context["last_products"] = self.context["last_products"][-10:]
-                    
-                    elif tool_name in ["view_cart", "add_to_cart", "remove_from_cart"]:
-                        if isinstance(result, dict) and "line_items" in result:
-                            self.context["cart"] = [{"product_id": item.get("product_id"), "qty": item.get("quantity")} for item in result["line_items"]]
-                        elif isinstance(result, dict) and result.get("message") == "Cart is empty.":
-                            self.context["cart"] = []
-                            
-                    elif tool_name == "list_categories":
-                        if isinstance(result, list):
-                            self.context["categories"] = [{"id": cat.get("id"), "name": cat.get("name")} for cat in result]
-                            
-                    elif tool_name == "list_brands":
-                        if isinstance(result, list):
-                            self.context["brands"] = [{"id": b.get("id"), "name": b.get("name"), "slug": b.get("slug")} for b in result]
-                            
-                    logging.info(f"Updated Session Memory: {self.context}")
-                    
-                    # 3. Summarization Pass (Friendly response)
-                    friendly_response = self._summarize_results(user_input, result)
-                    
-                    self.history.append({"role": "user", "parts": [{"text": user_input}]})
-                    self.history.append({"role": "model", "parts": [{"text": friendly_response}]})
-                    
-                    return friendly_response
+                    result   = self.available_tools[tool_name](**args)
+                    self._update_context(tool_name, result)
+                    friendly = self._summarize_results(user_input, result)
+                    self.history.append({"role": "user",  "parts": [{"text": user_input}]})
+                    self.history.append({"role": "model", "parts": [{"text": friendly}]})
+                    return friendly
                 except Exception as e:
-                    logging.error(f"Tool Execution Error: {e}")
+                    logging.error(f"Tool execution error: {e}")
                     return f"Error executing {tool_name}: {str(e)}"
-            
-            # 3. Handle Direct Response
+
+            # ── Direct response (greetings etc.) ───────────────────────────
             if "response" in data:
-                response_text = data["response"]
-                self.history.append({"role": "user", "parts": [{"text": user_input}]})
-                self.history.append({"role": "model", "parts": [{"text": response_text}]})
-                return response_text
-            
-            return raw_response
-            
+                resp = self._clean_urls(data["response"])
+                self.history.append({"role": "user",  "parts": [{"text": user_input}]})
+                self.history.append({"role": "model", "parts": [{"text": resp}]})
+                return resp
+
+            return self._clean_urls(raw_response)
+
         except json.JSONDecodeError:
-            self.history.append({"role": "user", "parts": [{"text": user_input}]})
-            self.history.append({"role": "model", "parts": [{"text": raw_response}]})
-            return raw_response
+            cleaned = self._clean_urls(raw_response)
+            self.history.append({"role": "user",  "parts": [{"text": user_input}]})
+            self.history.append({"role": "model", "parts": [{"text": cleaned}]})
+            return cleaned
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
