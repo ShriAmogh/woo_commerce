@@ -20,7 +20,7 @@ class MCPActions:
         if category_id and isinstance(category_id, str) and not category_id.isdigit():
             logging.info(f"Attempting to resolve category name '{category_id}' to an ID...")
             try:
-                categories = actions.list_categories()
+                categories = self.list_categories() # Changed to self.list_categories()
                 if isinstance(categories, list):
                     for cat in categories:
                         if cat.get("name", "").lower() == category_id.lower() or cat.get("slug", "").lower() == category_id.lower():
@@ -37,6 +37,18 @@ class MCPActions:
             return res
         except Exception as e:
             logging.error(f"MCP list_products error: {e}")
+            return {"error": str(e)}
+
+    def search_products(self, query):
+        """Wrapper for MCP woocommerce-products-list ability with search query."""
+        logging.info(f"Calling MCP woocommerce-products-list (search) with query: {query}")
+        try:
+            res = self.mcp.call_tool("woocommerce-products-list", {"search": query})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP search_products error: {e}")
             return {"error": str(e)}
 
     def get_product_details(self, product_id_or_name):
@@ -67,4 +79,64 @@ class MCPActions:
             logging.error(f"MCP get_product error: {e}")
             return {"error": str(e)}
 
+    def get_store_info(self):
+        """Wrapper for MCP woocommerce-system-status-get ability."""
+        logging.info("Calling MCP woocommerce-system-status-get")
+        try:
+            res = self.mcp.call_tool("woocommerce-system-status-get", {})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP get_store_info error: {e}")
+            return {"error": str(e)}
 
+    def list_categories(self):
+        """Wrapper for MCP woocommerce-products-categories-list ability."""
+        logging.info("Calling MCP woocommerce-products-categories-list")
+        try:
+            res = self.mcp.call_tool("woocommerce-products-categories-list", {})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP list_categories error: {e}")
+            return {"error": str(e)}
+
+    def list_brands(self):
+        """Wrapper for MCP woocommerce-products-brands-list ability."""
+        logging.info("Calling MCP woocommerce-products-brands-list")
+        try:
+            res = self.mcp.call_tool("woocommerce-products-brands-list", {})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP list_brands error: {e}")
+            return {"error": str(e)}
+
+    def get_products_by_brand(self, brand_slug):
+        """Wrapper for MCP woocommerce-products-list ability to filter by brand slug."""
+        logging.info(f"Calling MCP woocommerce-products-list (brand search) for: {brand_slug}")
+        try:
+            # Assuming the 'search' parameter can effectively filter by brand slug
+            res = self.mcp.call_tool("woocommerce-products-list", {"search": brand_slug})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP get_products_by_brand error: {e}")
+            return {"error": str(e)}
+
+    def search_products_by_brand(self, brand, query):
+        """Wrapper for MCP woocommerce-products-list ability to search within a brand."""
+        logging.info(f"Calling MCP woocommerce-products-list for brand: {brand} and query: {query}")
+        try:
+            # Combining brand and query for a broader search
+            res = self.mcp.call_tool("woocommerce-products-list", {"search": f"{brand} {query}"})
+            if "structuredContent" in res:
+                return res["structuredContent"]
+            return res
+        except Exception as e:
+            logging.error(f"MCP search_products_by_brand error: {e}")
+            return {"error": str(e)}

@@ -35,8 +35,6 @@ class WooCommerceMCPClient:
             f"{woo_url}/wp-json/woocommerce/mcp"
         )
 
-        # ✅ FIX 1: Build X-MCP-API-Key header per official spec
-        # Format: "ck_key:cs_secret" — NOT Basic Auth
         consumer_key    = os.getenv("WOO_CONSUMER_KEY", "")
         consumer_secret = os.getenv("WOO_CONSUMER_SECRET", "")
 
@@ -47,12 +45,15 @@ class WooCommerceMCPClient:
 
         self.headers = {
             "Content-Type": "application/json",
-            # ✅ Correct auth header — replaces HTTPBasicAuth entirely
             "X-MCP-API-Key": f"{consumer_key}:{consumer_secret}",
         }
 
+        # Handle Tunnel / Live Link Authentication
+        live_user = os.getenv("WOO_LIVE_LINK_USER", "")
+        live_pass = os.getenv("WOO_LIVE_LINK_PASS", "")
+        self.auth = (live_user, live_pass) if live_user else None
+
         self.session_id = None
-        # SSL off for local self-signed certs
         self.verify = False
 
     def _initialize_session(self):
@@ -76,6 +77,7 @@ class WooCommerceMCPClient:
                 self.endpoint,
                 json=payload,
                 headers=self.headers,
+                auth=self.auth,
                 verify=self.verify,
                 timeout=15
             )
@@ -88,6 +90,7 @@ class WooCommerceMCPClient:
                     fallback_url,
                     json=payload,
                     headers=self.headers,
+                    auth=self.auth,
                     verify=self.verify,
                     timeout=15,
                 )
@@ -116,6 +119,7 @@ class WooCommerceMCPClient:
                 self.endpoint,
                 json=payload,
                 headers=self.headers,   # ✅ No auth= kwarg — header carries auth
+                auth=self.auth,
                 verify=self.verify,
                 timeout=15,
             )
@@ -130,6 +134,7 @@ class WooCommerceMCPClient:
                     fallback_url,
                     json=payload,
                     headers=self.headers,
+                    auth=self.auth,
                     verify=self.verify,
                     timeout=15,
                 )

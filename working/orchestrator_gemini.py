@@ -42,15 +42,15 @@ class GeminiOrchestrator:
             logging.warning(f"⚠️ MCP unavailable, falling back to REST: {e}")
 
         self.available_tools = {
-            "list_products":          actions.list_products,
-            "search_products":        actions_db.search_products_vector,
-            "get_product_details":    actions.get_product_details,
-            "get_store_info":         actions.get_store_info,
-            "list_categories":        actions.list_categories,
+            "list_products":          self.mcp_actions.list_products,
+            "search_products":        self.mcp_actions.search_products,
+            "get_product_details":    self.mcp_actions.get_product_details,
+            "get_store_info":         self.mcp_actions.get_store_info,
+            "list_categories":        self.mcp_actions.list_categories,
             "get_product_variations": actions.get_product_variations,
-            "list_brands":            actions.list_brands,
-            "get_products_by_brand":  actions.get_products_by_brand,
-            "search_products_by_brand": search_products_by_brand,
+            "list_brands":            self.mcp_actions.list_brands,
+            "get_products_by_brand":  self.mcp_actions.get_products_by_brand,
+            "search_products_by_brand": self.mcp_actions.search_products_by_brand,
             "check_stock_status":     actions.check_stock_status,
             "view_cart":              actions.view_cart,
             "add_to_cart":            actions.add_to_cart,
