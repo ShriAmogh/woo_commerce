@@ -44,7 +44,7 @@ class GeminiOrchestrator:
         self.available_tools = {
             "list_products":          actions.list_products,
             "search_products":        actions.search_products,
-            "get_product_details":    actions_db.get_product_details,
+            "get_product_details":    actions_db.get_product_details_vector,
             "get_store_info":         actions.get_store_info,
             "list_categories":        actions.list_categories,
             "get_product_variations": actions.get_product_variations,
