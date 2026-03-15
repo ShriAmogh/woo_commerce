@@ -285,15 +285,6 @@ def list_brands():
         return {"error": str(e)}
 
 
-def get_products_by_brand(brand_slug: str):
-    """Retrieves products filtered by brand via Vector DB."""
-    logging.info(f"Fetching products for brand: {brand_slug}")
-    try:
-        return actions_db.search_products_by_brand(brand_slug, query="", top_k=20)
-    except Exception as e:
-        return {"error": str(e)}
-
-
 def get_product_variations(product_id_or_name):
     """Retrieves all variations for a variable product."""
     product_id = resolve_product_id(product_id_or_name)
@@ -566,5 +557,4 @@ tools = [
     apply_coupon,
     get_store_info,
     list_brands,
-    get_products_by_brand,
 ]
