@@ -7,3 +7,4 @@ fastembed
 python-dotenv
 requests
 pydantic
+urllib3

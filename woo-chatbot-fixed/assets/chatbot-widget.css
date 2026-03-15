@@ -1,0 +1,618 @@
+/* ============================================================
+   WooCommerce AI Chatbot — Widget Styles
+   Matches screenshot exactly:
+   - Blue bubble with chat icon (no emoji)
+   - Blue header with shopping bags emoji + title
+   - Light grey background messages area
+   - White rounded bot bubbles (left aligned)
+   - Blue rounded user bubbles (right aligned)
+   - Grey send button
+   - Pill-shaped input
+   ============================================================ */
+
+#woochat-container *,
+#woochat-container *::before,
+#woochat-container *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+#woochat-container {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* ── Bubble — matches screenshot 1 exactly ───────────────────────────────── */
+#woochat-bubble {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: #3b6ef8;
+    /* soft glow ring like screenshot */
+    box-shadow:
+        0 0 0 10px rgba(59, 110, 248, 0.12),
+        0 4px 16px rgba(59, 110, 248, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    outline: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#woochat-bubble:hover {
+    transform: scale(1.06);
+    box-shadow:
+        0 0 0 12px rgba(59, 110, 248, 0.15),
+        0 6px 22px rgba(59, 110, 248, 0.5);
+}
+
+#woochat-bubble:focus-visible {
+    outline: 3px solid rgba(59, 110, 248, 0.5);
+    outline-offset: 3px;
+}
+
+/* ── Chat window ─────────────────────────────────────────────────────────── */
+#woochat-window {
+    display: none;
+    flex-direction: column;
+    width: 380px;
+    height: 560px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow:
+        0 16px 56px rgba(0, 0, 0, 0.16),
+        0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 16px;
+    animation: woochat-slidein 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes woochat-slidein {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.94);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Header — blue bar with emoji + title + X ────────────────────────────── */
+#woochat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 18px;
+    background: #3b6ef8;
+    flex-shrink: 0;
+}
+
+#woochat-title {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#woochat-close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 20px;
+    font-weight: 300;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#woochat-close:hover {
+    color: #ffffff;
+}
+
+/* ── Messages area — light grey background ───────────────────────────────── */
+#woochat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #eef0f5;
+    scroll-behavior: smooth;
+}
+
+#woochat-messages::-webkit-scrollbar {
+    width: 3px;
+}
+
+#woochat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#woochat-messages::-webkit-scrollbar-thumb {
+    background: #c8cbd4;
+    border-radius: 3px;
+}
+
+/* ── Message bubbles ─────────────────────────────────────────────────────── */
+.woochat-msg {
+    max-width: 85%;
+    padding: 12px 16px;
+    font-size: 15px;
+    line-height: 1.55;
+    word-wrap: break-word;
+    animation: woochat-msgin 0.16s ease;
+}
+
+@keyframes woochat-msgin {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Bot — white card, left aligned, rounded right corners */
+.woochat-msg--bot {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #1c1c1e;
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* User — blue, right aligned, rounded left corners */
+.woochat-msg--user {
+    align-self: flex-end;
+    background: #3b6ef8;
+    color: #ffffff;
+    border-radius: 18px 18px 4px 18px;
+}
+
+/* Links inside bot messages */
+.woochat-msg--bot a {
+    color: #3b6ef8;
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.woochat-msg--bot a:hover {
+    text-decoration: none;
+}
+
+/* ── Login prompt ────────────────────────────────────────────────────────── */
+.woochat-login-btn {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 9px 18px;
+    background: #3b6ef8;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    border-radius: 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+
+.woochat-login-btn:hover {
+    opacity: 0.88;
+}
+
+/* ── Typing indicator ────────────────────────────────────────────────────── */
+.woochat-typing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 14px 16px;
+    min-width: 60px;
+    background: #ffffff;
+    border-radius: 18px 18px 18px 4px;
+    align-self: flex-start;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.woochat-typing span {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: #b0b4bf;
+    border-radius: 50%;
+    animation: woochat-bounce 1.3s infinite ease-in-out;
+}
+
+.woochat-typing span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.woochat-typing span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.woochat-typing span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes woochat-bounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    30% {
+        transform: translateY(-5px);
+        opacity: 1;
+    }
+}
+
+/* ── Input row — white bar at bottom ─────────────────────────────────────── */
+#woochat-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    border-top: 1px solid #e8eaed;
+    flex-shrink: 0;
+}
+
+/* Pill-shaped input — matches screenshot */
+#woochat-input {
+    flex: 1;
+    border: 1.5px solid #e2e5ea;
+    border-radius: 24px;
+    padding: 10px 16px;
+    font-size: 14.5px;
+    color: #1c1c1e;
+    background: #f7f8fa;
+    outline: none;
+    line-height: 1.4;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#woochat-input::placeholder {
+    color: #adb1ba;
+}
+
+#woochat-input:focus {
+    border-color: #3b6ef8;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(59, 110, 248, 0.12);
+}
+
+#woochat-input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Grey send button — matches screenshot exactly */
+#woochat-send {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #8e949f;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.15s;
+}
+
+#woochat-send:hover {
+    background: #3b6ef8;
+    transform: scale(1.06);
+}
+
+#woochat-send:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    background: #8e949f;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    #woochat-container {
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+    }
+
+    #woochat-window {
+        width: 100%;
+        height: 78vh;
+        max-height: 560px;
+        border-radius: 20px;
+    }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+    #woochat-bubble,
+    #woochat-window,
+    .woochat-msg,
+    .woochat-typing span {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ── Product Card ─────────────────────────────────────────────────────────── */
+.woochat-product-card {
+    width: 100%;
+    background: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    margin: 4px 0;
+    animation: woochat-msgin 0.18s ease;
+    border: 1px solid #e8eaed;
+}
+
+/* "PRODUCT PROFILE" title bar */
+.wpc-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #111;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid #e0e0dc;
+    background: #f4f4f0;
+    text-transform: uppercase;
+}
+
+/* Product image */
+.wpc-image-wrap {
+    width: 100%;
+    background: #f5f5f3;
+    overflow: hidden;
+    max-height: 180px;
+}
+
+.wpc-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Body — two columns like screenshot */
+.wpc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: #fff;
+    min-height: 100px;
+}
+
+.wpc-description-col {
+    flex: 1.1;
+    min-width: 0;
+}
+
+.wpc-price-col {
+    flex: 0.9;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+/* Description heading */
+.wpc-name {
+    font-size: 13px;
+    color: #1a1a1e;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.wpc-name strong {
+    display: block;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+}
+
+.wpc-desc {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Price rows */
+.wpc-price-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.wpc-label-sm {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #1a1a1e;
+    text-transform: uppercase;
+}
+
+.wpc-sale-label {
+    color: #1a1a1e;
+}
+
+/* Strikethrough regular price */
+.wpc-price-old {
+    font-size: 13px;
+    color: #888;
+    text-decoration: line-through;
+    font-weight: 500;
+}
+
+/* Sale price + badge */
+.wpc-price-sale {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1a1a1e;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.wpc-badge {
+    background: #1a4a1a;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+}
+
+.wpc-sku {
+    font-size: 12px;
+    color: #555;
+    font-family: monospace;
+}
+
+/* View Product Gallery button — dark green like screenshot */
+.wpc-btn {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #1a4a1a;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    transition: opacity 0.15s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.wpc-btn:hover {
+    opacity: 0.88;
+}
+
+/* ── Product Card Row (horizontal scroll) ────────────────────────────────── */
+.woochat-card-row {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 4px 2px 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+/* Hide scrollbar on desktop but keep scroll functionality */
+.woochat-card-row::-webkit-scrollbar {
+    height: 4px;
+}
+
+.woochat-card-row::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.woochat-card-row::-webkit-scrollbar-thumb {
+    background: #d0d5dd;
+    border-radius: 4px;
+}
+
+/* Compact card — fixed width in row */
+.woochat-product-card--compact {
+    min-width: 240px;
+    max-width: 240px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+}
+
+/* Compact image — shorter */
+.woochat-product-card--compact .wpc-image-wrap {
+    max-height: 120px;
+}
+
+.woochat-product-card--compact .wpc-image {
+    height: 120px;
+}
+
+/* Compact body — single column */
+.wpc-body--compact {
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 10px 10px 12px !important;
+}
+
+.wpc-body--compact .wpc-description-col,
+.wpc-body--compact .wpc-price-col {
+    flex: unset !important;
+    width: 100% !important;
+}
+
+.wpc-body--compact .wpc-name {
+    font-size: 12.5px;
+    margin-bottom: 4px;
+}
+
+.wpc-body--compact .wpc-price-sale {
+    font-size: 13px;
+}
+
+.wpc-body--compact .wpc-btn {
+    padding: 6px 8px;
+    font-size: 10.5px;
+    margin-top: 6px;
+}
+
+/* No image placeholder */
+.wpc-no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    background: #f0f2f5;
+    height: 120px;
+    max-height: 120px;
+}

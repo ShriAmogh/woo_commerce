@@ -123,6 +123,60 @@
         .message.bot a:hover { text-decoration: underline; }
         .message.bot ul { margin: 8px 0; padding-left: 20px; }
         .message.bot strong { font-weight: 600; color: #111827; }
+
+        /* Product Card UI */
+        .chat-messages {
+            overflow-x: hidden;
+        }
+        .woochat-carousel {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 12px;
+            padding: 10px 4px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+        .woochat-carousel::-webkit-scrollbar {
+            height: 6px;
+        }
+        .woochat-carousel::-webkit-scrollbar-thumb {
+            background: #d0d0d0;
+            border-radius: 10px;
+        }
+        .woochat-product-card {
+            flex: 0 0 260px;
+            scroll-snap-align: start;
+            background: #f4f4f0;
+            border-radius: 12px;
+            border: 1px solid #e0e0dc;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-family: inherit;
+            color: #1a1a1a;
+            text-align: left;
+        }
+        .woochat-product-header { text-align: center; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; color: #111; }
+        .woochat-product-img-wrapper { width: 100%; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .woochat-product-img { width: 100%; height: auto; object-fit: cover; display: block; aspect-ratio: 4/3; }
+        .woochat-product-content { display: flex; flex-direction: row; gap: 12px; align-items: stretch; }
+        .woochat-product-desc-col { flex: 3; display: flex; flex-direction: column; gap: 4px; }
+        .woochat-product-title { font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .woochat-product-subtitle { font-weight: 400; text-transform: none; font-size: 11px; }
+        .woochat-product-desc-text { font-size: 11px; line-height: 1.4; color: #333; }
+        .woochat-product-meta-col { flex: 2; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; border-left: 1px solid #d4d4d0; padding-left: 12px; }
+        .woochat-product-pricing { display: flex; flex-direction: column; gap: 2px; }
+        .woochat-product-price-row { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; }
+        .woochat-price-label { text-transform: uppercase; white-space: nowrap; }
+        .woochat-price-regular.strikethrough { text-decoration: line-through; color: #555; position: relative; }
+        .woochat-price-regular.strikethrough::after { content: ''; position: absolute; left: -1px; right: -1px; top: 50%; height: 1px; background: #c00; transform: rotate(-5deg); }
+        .woochat-btn-gallery { display: block; background: #1b5e20; color: #ffffff !important; text-decoration: none !important; padding: 6px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; text-align: center; }
+        .woochat-btn-gallery:hover { background: #144917; }
+        @media (max-width: 300px) { .woochat-product-content { flex-direction: column; } .woochat-product-meta-col { border-left: none; border-top: 1px solid #d4d4d0; padding-left: 0; padding-top: 8px; } }
     </style>
 </head>
 <body>
@@ -186,25 +240,105 @@
             const [isLoading, setIsLoading] = React.useState(false);
             const messagesEndRef = React.useRef(null);
 
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
+            const ProductCard = ({ data }) => {
+                const { name, description, regular_price, sale_price, sku, image_url, permalink } = data;
+                
+                const renderPrice = () => {
+                    if (sale_price && regular_price && sale_price !== regular_price) {
+                        return (
+                            <React.Fragment>
+                                <div className="woochat-product-price-row">
+                                    <span className="woochat-price-label">REGULAR:</span>
+                                    <span className="woochat-price-regular strikethrough">₹{regular_price}</span>
+                                </div>
+                                <div className="woochat-product-price-row">
+                                    <span className="woochat-price-label">SALE:</span>
+                                    <span className="woochat-price-sale">₹{sale_price}</span>
+                                </div>
+                            </React.Fragment>
+                        );
+                    }
+                    if (regular_price) {
+                        return (
+                            <div className="woochat-product-price-row">
+                                <span className="woochat-price-label">PRICE:</span>
+                                <span className="woochat-price-sale">₹{regular_price}</span>
+                            </div>
+                        );
+                    }
+                    return null;
+                };
 
-            React.useEffect(() => {
-                scrollToBottom();
-            }, [messages]);
+                return (
+                    <div className="woochat-product-card">
+                        <div className="woochat-product-header">PRODUCT PROFILE</div>
+                        {image_url && (
+                            <div className="woochat-product-img-wrapper">
+                                <img src={image_url} alt={name} className="woochat-product-img" />
+                            </div>
+                        )}
+                        <div className="woochat-product-content">
+                            <div className="woochat-product-desc-col">
+                                <div className="woochat-product-title">DESCRIPTION: <span className="woochat-product-subtitle">{name}</span></div>
+                                <div className="woochat-product-desc-text">{description || 'No description available'}</div>
+                            </div>
+                            <div className="woochat-product-meta-col">
+                                <div className="woochat-product-pricing">
+                                    {renderPrice()}
+                                    {sku && (
+                                        <div className="woochat-product-price-row">
+                                            <span className="woochat-price-label">SKU:</span>
+                                            <span className="woochat-sku">{sku}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                {permalink && (
+                                    <a href={permalink} target="_blank" className="woochat-btn-gallery">
+                                        [ 🌐 VIEW GALLERY ]
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
 
             // Simple markdown parser for bold, links, and bullets
             const renderFormattedText = (text) => {
-                // Highly basic regex replacing for demo
-                let html = text
+                const productCards = [];
+                let cleanText = text;
+                const cardRegex = /\[PRODUCT_CARD\]([\s\S]*?)\[\/PRODUCT_CARD\]/gi;
+                
+                const matches = [...text.matchAll(cardRegex)];
+                if (matches.length > 0) {
+                    matches.forEach(match => {
+                        try {
+                            const productData = JSON.parse(match[1].trim());
+                            productCards.push(productData);
+                        } catch (e) {
+                            console.error("Failed to parse product card:", e);
+                        }
+                    });
+                    cleanText = text.replace(cardRegex, '').trim();
+                }
+
+                let html = cleanText
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>')
                     .replace(/^-\s+(.*)/gm, '<li>$1</li>')
                     .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
                     .replace(/\n/g, '<br/>');
                 
-                return <div className="message-content" dangerouslySetInnerHTML={{ __html: html }} />;
+                return (
+                    <div className="message-content">
+                        {html && <div dangerouslySetInnerHTML={{ __html: html }} />}
+                        {productCards.length > 0 && (
+                            <div className="woochat-carousel">
+                                {productCards.map((p, idx) => <ProductCard key={idx} data={p} />)}
+                            </div>
+                        )}
+                    </div>
+                );
             };
 
             const sendMessage = async (e) => {
