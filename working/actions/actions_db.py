@@ -100,6 +100,14 @@ def search_products_vector(query: str, max_price: float = None, category_id: int
         logging.error(f"Error in vector search: {e}")
         return {"error": str(e)}
 
+def get_products_by_brand(brand_slug: str):
+    """Retrieves products filtered by brand via Vector DB."""
+    logging.info(f"Fetching products for brand: {brand_slug}")
+    try:
+        return search_products_by_brand(brand_slug, query="", top_k=20)
+    except Exception as e:
+        return {"error": str(e)}
+
 def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
     """
     Search for products by brand slug, with optional semantic query.
