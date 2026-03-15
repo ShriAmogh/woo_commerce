@@ -174,8 +174,6 @@ class GeminiOrchestrator:
         seen_ids = set()
         
         # We only want to show cards for things that look like products (have an 'id' and 'name')
-        # And we limit to 3 cards to avoid overwhelming the chat
-        card_count = 0
         for item in raw_items:
             if not isinstance(item, dict) or "id" not in item or "name" not in item:
                 continue
@@ -185,19 +183,38 @@ class GeminiOrchestrator:
                 continue
             seen_ids.add(p_id)
 
+            # Extract fields with better fallbacks
+            name = item.get("name")
+            desc = item.get("description") or item.get("short_description") or ""
+            # Clean HTML from description
+            desc = re.sub('<[^<]+?>', '', desc).strip()
+            
+            reg_price = str(item.get("regular_price") or item.get("price") or "")
+            sal_price = str(item.get("sale_price") or "")
+            
+            # If sale_price is same as reg_price, or missing, default to items[price]
+            if not sal_price or sal_price == reg_price:
+                sal_price = str(item.get("price") or reg_price)
+
+            sku = item.get("sku") or ""
+            
+            # Image handling
+            img_url = item.get("image_url") or ""
+            if not img_url:
+                images = item.get("images")
+                if images and isinstance(images, list) and len(images) > 0:
+                    img_url = images[0] if isinstance(images[0], str) else images[0].get("src")
+
             # Build card data
             card_data = {
-                "name": item.get("name"),
-                "description": item.get("description") or item.get("short_description") or "",
-                "regular_price": str(item.get("regular_price") or ""),
-                "sale_price": str(item.get("sale_price") or ""),
-                "sku": item.get("sku") or "",
-                "image_url": item.get("image_url") or (item.get("images")[0] if item.get("images") else ""),
+                "name": name,
+                "description": desc,
+                "regular_price": reg_price,
+                "sale_price": sal_price,
+                "sku": sku,
+                "image_url": img_url,
                 "permalink": item.get("permalink") or ""
             }
-            
-            # Clean HTML from description
-            card_data["description"] = re.sub('<[^<]+?>', '', card_data["description"])
             
             appended_cards += f"\n\n[PRODUCT_CARD]\n{json.dumps(card_data, indent=2)}\n[/PRODUCT_CARD]"
 
