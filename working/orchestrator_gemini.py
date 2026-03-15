@@ -150,6 +150,63 @@ class GeminiOrchestrator:
             return json.dumps(tool_results, indent=2, ensure_ascii=False)
 
     # ─────────────────────────────────────────────────────────────────────────
+    # Product Card Injection — Manually appends cards from tool results
+    # ─────────────────────────────────────────────────────────────────────────
+    def _inject_product_cards(self, friendly_response, tool_results):
+        """
+        Scans results for product data and appends [PRODUCT_CARD] blocks.
+        """
+        if not tool_results or not isinstance(tool_results, (dict, list)):
+            return friendly_response
+
+        # Flatten results if it's a dict of multi-tool results
+        raw_items = []
+        if isinstance(tool_results, dict):
+            for val in tool_results.values():
+                if isinstance(val, list):
+                    raw_items.extend(val)
+                elif isinstance(val, dict):
+                    raw_items.append(val)
+        else:
+            raw_items = tool_results
+
+        appended_cards = ""
+        seen_ids = set()
+        
+        # We only want to show cards for things that look like products (have an 'id' and 'name')
+        # And we limit to 3 cards to avoid overwhelming the chat
+        card_count = 0
+        for item in raw_items:
+            if not isinstance(item, dict) or "id" not in item or "name" not in item:
+                continue
+            
+            p_id = item["id"]
+            if p_id in seen_ids:
+                continue
+            seen_ids.add(p_id)
+
+            # Build card data
+            card_data = {
+                "name": item.get("name"),
+                "description": item.get("description") or item.get("short_description") or "",
+                "regular_price": str(item.get("regular_price") or ""),
+                "sale_price": str(item.get("sale_price") or ""),
+                "sku": item.get("sku") or "",
+                "image_url": item.get("image_url") or (item.get("images")[0] if item.get("images") else ""),
+                "permalink": item.get("permalink") or ""
+            }
+            
+            # Clean HTML from description
+            card_data["description"] = re.sub('<[^<]+?>', '', card_data["description"])
+            
+            appended_cards += f"\n\n[PRODUCT_CARD]\n{json.dumps(card_data, indent=2)}\n[/PRODUCT_CARD]"
+            card_count += 1
+            if card_count >= 3:
+                break
+
+        return friendly_response + appended_cards
+
+    # ─────────────────────────────────────────────────────────────────────────
     # Context updater
     # ─────────────────────────────────────────────────────────────────────────
     def _update_context(self, tool_name: str, result):
@@ -229,6 +286,8 @@ class GeminiOrchestrator:
 
                 if all_results:
                     friendly = self._summarize_results(user_input, all_results)
+                    # Inject product cards manually
+                    friendly = self._inject_product_cards(friendly, all_results)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
                     return friendly
@@ -256,6 +315,8 @@ class GeminiOrchestrator:
                     result   = self.available_tools[tool_name](**args)
                     self._update_context(tool_name, result)
                     friendly = self._summarize_results(user_input, result)
+                    # Inject product cards manually
+                    friendly = self._inject_product_cards(friendly, result)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
                     return friendly
