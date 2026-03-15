@@ -200,9 +200,6 @@ class GeminiOrchestrator:
             card_data["description"] = re.sub('<[^<]+?>', '', card_data["description"])
             
             appended_cards += f"\n\n[PRODUCT_CARD]\n{json.dumps(card_data, indent=2)}\n[/PRODUCT_CARD]"
-            card_count += 1
-            if card_count >= 3:
-                break
 
         return friendly_response + appended_cards
 
