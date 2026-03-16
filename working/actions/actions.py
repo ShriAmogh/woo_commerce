@@ -139,6 +139,7 @@ def list_products(min_price=None, max_price=None, category_id=None):
                     'name':          p.get('name'),
                     'price':         p.get('price'),
                     'regular_price': p.get('regular_price'),
+                    "currency":      p.get("currency"),
                     'sale_price':    p.get('sale_price'),
                     'stock_status':  p.get('stock_status'),
                     'stock_quantity':p.get('stock_quantity'),
@@ -172,6 +173,7 @@ def search_products(query: str):
                     'name':          p.get('name'),
                     'regular_price': p.get('regular_price'),
                     'sale_price':    p.get('sale_price'),
+                    "currency":      p.get("currency"),
                     'stock_status':  p.get('stock_status'),
                     'stock_quantity':p.get('stock_quantity'),
                     'permalink':     p.get('permalink'),
@@ -245,6 +247,7 @@ def get_product_details(product_id_or_name):
                 'price':             p.get('price'),
                 'regular_price':     p.get('regular_price'),
                 'sale_price':        p.get('sale_price'),
+                "currency":          p.get("currency"),
                 'stock_status':      p.get('stock_status'),
                 'stock_quantity':    p.get('stock_quantity'),
                 'description':       p.get('description'),
@@ -520,7 +523,7 @@ def get_store_info():
                 "description": data.get("description"),
                 "url":         data.get("url"),
                 "home":        data.get("home"),
-                "currency":    "INR",
+                "currency":    data.get("currency"),
             }
         return {"error": f"Failed to fetch store info: {response.status_code}"}
     except Exception as e:

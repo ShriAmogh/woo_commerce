@@ -196,8 +196,8 @@ class GeminiOrchestrator:
             if not desc or desc.lower() == name.lower():
                 desc = ""
             
-            reg_price = str(item.get("regular_price"))
-            sal_price = str(item.get("sale_price"))
+            reg_price = str(item.get("regular_price") or "")
+            sal_price = str(item.get("sale_price") or "")
             
             # If sale_price is same as reg_price, or missing, default to items[price]
             if not sal_price or sal_price == reg_price:
