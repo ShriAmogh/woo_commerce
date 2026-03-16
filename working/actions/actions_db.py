@@ -82,15 +82,21 @@ def search_products_vector(query: str, max_price: float = None, category_id: int
         for res in search_results:
             p = res.payload
             final_results.append({
-                "id": p.get("id"),
-                "name": p.get("name"),
-                "price": p.get("price"),
-                "in_stock": p.get("in_stock"),
-                "image": p.get("image"),
-                "description": p.get("description"),
-                "is_variation": p.get("is_variation"),
-                "parent_id": p.get("parent_id"),
-                "attributes": p.get("attributes"),
+                "id":            p.get("id"),
+                "name":          p.get("name"),
+                "currency":      p.get("currency"),
+                "price":         p.get("price"),
+                "regular_price": p.get("regular_price"),
+                "sale_price":    p.get("sale_price"),
+                "sku":           p.get("sku"),
+                "permalink":     p.get("permalink"),
+                "in_stock":      p.get("in_stock"),
+                "image":         p.get("image"),
+                "short_description": p.get("short_description"),
+                "description":   p.get("description"),
+                "is_variation":  p.get("is_variation"),
+                "parent_id":     p.get("parent_id"),
+                "attributes":    p.get("attributes"),
                 "relevance_score": float(res.score)
             })
             
@@ -136,6 +142,7 @@ def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
                 "id": p.payload.get("id"),
                 "name": p.payload.get("name"),
                 "price": p.payload.get("price"),
+                "currency": p.payload.get("currency"),
                 "in_stock": p.payload.get("in_stock"),
                 "image": p.payload.get("image")
             } for p in res]
@@ -158,6 +165,7 @@ def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
             "id": res.payload.get("id"),
             "name": res.payload.get("name"),
             "price": res.payload.get("price"),
+            "currency": res.payload.get("currency"),
             "in_stock": res.payload.get("in_stock"),
             "image": res.payload.get("image"),
             "relevance_score": float(res.score)
@@ -194,6 +202,7 @@ def list_products_vector(category_id: int = None, limit: int = 10):
             "id": p.payload.get("id"),
             "name": p.payload.get("name"),
             "price": p.payload.get("price"),
+            "currency": p.payload.get("currency"),
             "in_stock": p.payload.get("in_stock"),
             "image": p.payload.get("image"),
             "description": p.payload.get("description"),
