@@ -144,9 +144,10 @@ def list_products(min_price=None, max_price=None, category_id=None):
                     'stock_quantity':p.get('stock_quantity'),
                     'permalink':     p.get('permalink'),
                     'categories':    [c.get('name') for c in p.get('categories', [])],
+                    'attributes':    p.get('attributes', []),
                     'sku':           p.get('sku'),
                     'images':        [i.get('src') for i in p.get('images', [])],
-                    'description':   desc[:200] + '...' if len(desc) > 200 else desc,
+                    'description':   p.get('description', ''),
                 })
             return out
         logging.error(f"list_products error: {response.status_code} {response.text[:200]}")
@@ -175,8 +176,10 @@ def search_products(query: str):
                     'stock_quantity':p.get('stock_quantity'),
                     'permalink':     p.get('permalink'),
                     'sku':           p.get('sku'),
+                    'categories':    [c.get('name') for c in p.get('categories', [])],
+                    'attributes':    p.get('attributes', []),
                     'images':        [i.get('src') for i in p.get('images', [])],
-                    'description':   desc[:200] + '...' if len(desc) > 200 else desc,
+                    'description':   p.get('description', ''),
                 })
             return out
         logging.error(f"search_products error: {response.status_code} {response.text[:200]}")
