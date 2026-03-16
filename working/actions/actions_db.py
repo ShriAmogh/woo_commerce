@@ -142,9 +142,13 @@ def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
                 "id": p.payload.get("id"),
                 "name": p.payload.get("name"),
                 "price": p.payload.get("price"),
+                "regular_price": p.payload.get("regular_price"),
+                "sale_price": p.payload.get("sale_price"),
+                "permalink": p.payload.get("permalink"),
                 "currency": p.payload.get("currency"),
                 "in_stock": p.payload.get("in_stock"),
-                "image": p.payload.get("image")
+                "image": p.payload.get("image"),
+                "description": p.payload.get("description") or p.payload.get("short_description")
             } for p in res]
 
         # 3. Case: Brand Filter + Semantic Query
@@ -165,9 +169,13 @@ def search_products_by_brand(brand: str, query: str = "", top_k: int = 5):
             "id": res.payload.get("id"),
             "name": res.payload.get("name"),
             "price": res.payload.get("price"),
+            "regular_price": res.payload.get("regular_price"),
+            "sale_price": res.payload.get("sale_price"),
+            "permalink": res.payload.get("permalink"),
             "currency": res.payload.get("currency"),
             "in_stock": res.payload.get("in_stock"),
             "image": res.payload.get("image"),
+            "description": res.payload.get("description") or res.payload.get("short_description"),
             "relevance_score": float(res.score)
         } for res in search_results]
         
@@ -202,6 +210,9 @@ def list_products_vector(category_id: int = None, limit: int = 10):
             "id": p.payload.get("id"),
             "name": p.payload.get("name"),
             "price": p.payload.get("price"),
+            "regular_price": p.payload.get("regular_price"),
+            "sale_price": p.payload.get("sale_price"),
+            "permalink": p.payload.get("permalink"),
             "currency": p.payload.get("currency"),
             "in_stock": p.payload.get("in_stock"),
             "image": p.payload.get("image"),
