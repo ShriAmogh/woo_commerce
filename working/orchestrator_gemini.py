@@ -183,6 +183,10 @@ class GeminiOrchestrator:
                 continue
             seen_ids.add(p_id)
 
+            # Skip variations to avoid showing multiple identical images in the carousel
+            if item.get("is_variation") or item.get("parent_id"):
+                continue
+
             # Extract fields with better fallbacks
             name = item.get("name")
             desc = item.get("description") or item.get("short_description") or ""
