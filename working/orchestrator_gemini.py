@@ -44,7 +44,7 @@ class GeminiOrchestrator:
         self.available_tools = {
             "list_products":          actions.list_products,
             "search_products":        actions.search_products,
-            "get_product_details":    actions_db.get_product_details_vector,
+            "get_product_details":    actions.get_product_details,
             "get_store_info":         actions.get_store_info,
             "list_categories":        actions.list_categories,
             "get_product_variations": actions.get_product_variations,
@@ -304,7 +304,8 @@ class GeminiOrchestrator:
                     friendly = self._inject_product_cards(friendly, all_results)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
-                    return friendly
+                    tool_result = {tool_name: result}
+                    return tool_result, friendly
 
             # ── Single tool ────────────────────────────────────────────────
             tool_name = data.get("tool")
@@ -333,7 +334,8 @@ class GeminiOrchestrator:
                     friendly = self._inject_product_cards(friendly, result)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
-                    return friendly
+                    tool_result = {tool_name: result}
+                    return tool_result, friendly
                 except Exception as e:
                     logging.error(f"Tool execution error: {e}")
                     return f"Error executing {tool_name}: {str(e)}"
