@@ -304,8 +304,7 @@ class GeminiOrchestrator:
                     friendly = self._inject_product_cards(friendly, all_results)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
-                    tool_result = {tool_name: result}
-                    return tool_result, friendly
+                    return friendly
 
             # ── Single tool ────────────────────────────────────────────────
             tool_name = data.get("tool")
@@ -334,8 +333,7 @@ class GeminiOrchestrator:
                     friendly = self._inject_product_cards(friendly, result)
                     self.history.append({"role": "user",  "parts": [{"text": user_input}]})
                     self.history.append({"role": "model", "parts": [{"text": friendly}]})
-                    tool_result = {tool_name: result}
-                    return tool_result, friendly
+                    return friendly
                 except Exception as e:
                     logging.error(f"Tool execution error: {e}")
                     return f"Error executing {tool_name}: {str(e)}"
