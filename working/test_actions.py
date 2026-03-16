@@ -6,7 +6,7 @@ from actions import actions
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 def test_get_product_details_standard():
-    query = ""
+    query = "pants"
     print(f"\n=== Testing get_product_details for query: '{query}' (Standard + DB) ===")
     
     try:
