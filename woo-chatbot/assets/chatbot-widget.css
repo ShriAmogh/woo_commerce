@@ -17,7 +17,7 @@
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* ── Container ───────────────────────────────────────────────────────────── */
@@ -29,6 +29,11 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    pointer-events: none; /* allow clicks through the container zone */
+}
+
+#woochat-container > * {
+    pointer-events: auto; /* restore clicks for children */
 }
 
 /* ── Bubble — matches screenshot 1 exactly ───────────────────────────────── */
@@ -66,9 +71,9 @@
 #woochat-window {
     display: none;
     flex-direction: column;
-    width: 380px;
-    height: 560px;
-    border-radius: 20px;
+    width: 390px;
+    height: 580px;
+    border-radius: 22px;
     overflow: hidden;
     background: #ffffff;
     box-shadow:
@@ -76,18 +81,14 @@
         0 2px 8px rgba(0, 0, 0, 0.06);
     margin-bottom: 16px;
     animation: woochat-slidein 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 120px);
+    border: 1px solid rgba(0,0,0,0.05); /* subtle edge */
 }
 
 @keyframes woochat-slidein {
-    from {
-        opacity: 0;
-        transform: translateY(24px) scale(0.94);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(24px) scale(0.94); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ── Header — blue bar with emoji + title + X ────────────────────────────── */
@@ -133,47 +134,44 @@
 #woochat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 16px;
+    overflow-x: hidden;
+    padding: 22px 18px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
     background: #eef0f5;
     scroll-behavior: smooth;
+    min-width: 0;
+    max-width: 100%;
 }
 
-#woochat-messages::-webkit-scrollbar {
-    width: 3px;
-}
-
-#woochat-messages::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-#woochat-messages::-webkit-scrollbar-thumb {
-    background: #c8cbd4;
-    border-radius: 3px;
-}
+#woochat-messages::-webkit-scrollbar       { width: 3px; }
+#woochat-messages::-webkit-scrollbar-track { background: transparent; }
+#woochat-messages::-webkit-scrollbar-thumb { background: #c8cbd4; border-radius: 3px; }
 
 /* ── Message bubbles ─────────────────────────────────────────────────────── */
-.woochat-msg {
-    max-width: 85%;
-    padding: 12px 16px;
+/* Increased specificity to override global reset and ensure padding is applied */
+#woochat-container .woochat-msg {
+    max-width: 80%;
+    /* Remove width: fit-content to avoid padding calculation bugs in some browsers */
+    padding: 18px 23px !important; /* Forces padding to overcome the #woochat-container * reset */
     font-size: 15px;
-    line-height: 1.55;
+    line-height: 1.6;
     word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    overflow: visible; /* Critical: preventing clipping of characters */
     animation: woochat-msgin 0.16s ease;
+    letter-spacing: 0.01em;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    margin: 4px 0;
 }
 
 @keyframes woochat-msgin {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Bot — white card, left aligned, rounded right corners */
@@ -181,8 +179,8 @@
     align-self: flex-start;
     background: #ffffff;
     color: #1c1c1e;
-    border-radius: 18px 18px 18px 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: 20px 20px 20px 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* User — blue, right aligned, rounded left corners */
@@ -190,7 +188,7 @@
     align-self: flex-end;
     background: #3b6ef8;
     color: #ffffff;
-    border-radius: 18px 18px 4px 18px;
+    border-radius: 20px 20px 5px 20px;
 }
 
 /* Links inside bot messages */
@@ -199,10 +197,7 @@
     text-decoration: underline;
     word-break: break-all;
 }
-
-.woochat-msg--bot a:hover {
-    text-decoration: none;
-}
+.woochat-msg--bot a:hover { text-decoration: none; }
 
 /* ── Login prompt ────────────────────────────────────────────────────────── */
 .woochat-login-btn {
@@ -217,10 +212,7 @@
     font-weight: 600;
     transition: opacity 0.15s;
 }
-
-.woochat-login-btn:hover {
-    opacity: 0.88;
-}
+.woochat-login-btn:hover { opacity: 0.88; }
 
 /* ── Typing indicator ────────────────────────────────────────────────────── */
 .woochat-typing {
@@ -244,31 +236,13 @@
     animation: woochat-bounce 1.3s infinite ease-in-out;
 }
 
-.woochat-typing span:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.woochat-typing span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.woochat-typing span:nth-child(3) {
-    animation-delay: 0.4s;
-}
+.woochat-typing span:nth-child(1) { animation-delay: 0s; }
+.woochat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.woochat-typing span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes woochat-bounce {
-
-    0%,
-    60%,
-    100% {
-        transform: translateY(0);
-        opacity: 0.4;
-    }
-
-    30% {
-        transform: translateY(-5px);
-        opacity: 1;
-    }
+    0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+    30%           { transform: translateY(-5px); opacity: 1;   }
 }
 
 /* ── Input row — white bar at bottom ─────────────────────────────────────── */
@@ -296,9 +270,7 @@
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-#woochat-input::placeholder {
-    color: #adb1ba;
-}
+#woochat-input::placeholder { color: #adb1ba; }
 
 #woochat-input:focus {
     border-color: #3b6ef8;
@@ -345,7 +317,6 @@
         right: 16px;
         left: 16px;
     }
-
     #woochat-window {
         width: 100%;
         height: 78vh;
@@ -356,7 +327,6 @@
 
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-
     #woochat-bubble,
     #woochat-window,
     .woochat-msg,
@@ -366,54 +336,65 @@
     }
 }
 
-/* ── Product Card ─────────────────────────────────────────────────────────── */
+/* ── Product Card ────────────────────────────────────────────────────────── */
 .woochat-product-card {
     width: 100%;
     background: #ffffff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 14px;
+    overflow: visible; /* Fix: allow button to show if it slightly overflows */
+    box-shadow: 0 2px 16px rgba(0,0,0,0.10);
     margin: 4px 0;
     animation: woochat-msgin 0.18s ease;
-    border: 1px solid #e8eaed;
+    border: 1px solid #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
 }
 
-/* "PRODUCT PROFILE" title bar */
-.wpc-label {
-    text-align: center;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: #111;
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid #e0e0dc;
-    background: #f4f4f0;
-    text-transform: uppercase;
-}
-
-/* Product image */
+/* Full-width image at top — like screenshot */
 .wpc-image-wrap {
     width: 100%;
-    background: #f5f5f3;
+    background: #f0ede8;
     overflow: hidden;
-    max-height: 180px;
+    height: 190px;
 }
 
 .wpc-image {
     width: 100%;
-    height: 180px;
+    height: 190px;
     object-fit: cover;
+    object-position: center;
     display: block;
 }
 
-/* Body — two columns like screenshot */
+/* No image placeholder */
+.wpc-no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    background: #f5f5f3;
+    height: 120px;
+}
+
+/* Card body — two column layout like screenshot */
 .wpc-body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px;
-    background: #fff;
-    min-height: 100px;
+    padding: 14px 16px 16px;
+    min-width: 0;
+    width: 100%;
+    flex: 1; /* Stretch to fill card height */
+    min-height: 120px; /* Force minimum space for name/price/button */
+}
+
+.wpc-main-info {
+    display: flex;
+    flex-direction: row;
+    gap: 14px;
+    width: 100%;
 }
 
 .wpc-description-col {
@@ -425,71 +406,62 @@
     flex: 0.9;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
     min-width: 0;
+    justify-content: flex-start;
 }
 
-/* Description heading */
+/* DESCRIPTION: label + product name */
 .wpc-name {
-    font-size: 13px;
-    color: #1a1a1e;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #111;
     margin-bottom: 6px;
-    line-height: 1.4;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
 }
 
 .wpc-name strong {
-    display: block;
-    font-weight: 700;
-    font-size: 14px;
-    line-height: 1.4;
-    color: #1a1a1a;
-    margin-bottom: 4px;
+    font-weight: 800;
 }
 
 .wpc-desc {
-    font-size: 12px;
-    color: #666;
-    line-height: 1.5;
+    font-size: 12.5px;
+    color: #4b5563;
+    line-height: 1.6;
     margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-/* Price rows */
+/* Price rows — matches screenshot layout */
 .wpc-price-row {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
+    line-height: 1.3;
 }
 
 .wpc-label-sm {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.04em;
-    color: #1a1a1e;
+    letter-spacing: 0.06em;
+    color: #111;
     text-transform: uppercase;
 }
 
-.wpc-sale-label {
-    color: #1a1a1e;
-}
-
-/* Strikethrough regular price */
+/* Strikethrough regular price — like $219.99 in screenshot */
 .wpc-price-old {
     font-size: 13px;
-    color: #888;
+    color: #6b7280;
     text-decoration: line-through;
     font-weight: 500;
 }
 
-/* Sale price + badge */
+/* Sale price bold — like $169.99 (23% OFF) */
 .wpc-price-sale {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #1a1a1e;
+    font-size: 13px;
+    font-weight: 800;
+    color: #111;
     display: flex;
     align-items: center;
     gap: 5px;
@@ -497,92 +469,93 @@
 }
 
 .wpc-badge {
-    background: #1a4a1a;
+    background: #1a3a1a;
     color: #fff;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.03em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
 }
 
 .wpc-sku {
-    font-size: 12px;
-    color: #555;
-    font-family: monospace;
+    font-size: 11.5px;
+    color: #374151;
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-weight: 500;
 }
 
-/* View Product Gallery button — dark green like screenshot */
+/* Dark green VIEW PRODUCT GALLERY button — matches screenshot exactly */
 .wpc-btn {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: #1a4a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: auto; /* Push to bottom */
+    padding: 9px 12px;
+    background: #1c3a1c;
     color: #ffffff !important;
     text-decoration: none !important;
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-align: center;
-    transition: opacity 0.15s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: background 0.15s;
     width: 100%;
     box-sizing: border-box;
+    text-align: center;
 }
 
 .wpc-btn:hover {
-    opacity: 0.88;
+    background: #2d5a2d;
 }
 
-/* ── Product Card Row (horizontal scroll) ────────────────────────────────── */
+/* ── Product Card Row (horizontal scroll for multiple cards) ─────────────── */
 .woochat-card-row {
     display: flex;
     flex-direction: row;
     gap: 10px;
     overflow-x: auto;
     overflow-y: visible;
-    padding: 4px 2px 10px;
+    padding: 10px 4px 24px; /* Increased bottom padding to avoid scrollbar overlap */
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     width: 100%;
+    flex-shrink: 0;
+    align-items: stretch; /* Force all cards to equal height */
 }
 
-/* Hide scrollbar on desktop but keep scroll functionality */
-.woochat-card-row::-webkit-scrollbar {
-    height: 4px;
-}
+.woochat-card-row::-webkit-scrollbar       { height: 4px; }
+.woochat-card-row::-webkit-scrollbar-track { background: transparent; }
+.woochat-card-row::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 4px; }
 
-.woochat-card-row::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.woochat-card-row::-webkit-scrollbar-thumb {
-    background: #d0d5dd;
-    border-radius: 4px;
-}
-
-/* Compact card — fixed width in row */
+/* Compact card in row — fixed width */
 .woochat-product-card--compact {
-    min-width: 240px;
-    max-width: 240px;
+    min-width: 210px;
+    max-width: 210px;
     flex-shrink: 0;
     scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Compact image — shorter */
-.woochat-product-card--compact .wpc-image-wrap {
-    max-height: 120px;
-}
-
+.woochat-product-card--compact .wpc-image-wrap,
 .woochat-product-card--compact .wpc-image {
-    height: 120px;
+    height: 130px;
 }
 
 /* Compact body — single column */
 .wpc-body--compact {
     flex-direction: column !important;
     gap: 6px !important;
-    padding: 10px 10px 12px !important;
+    padding: 10px 12px 12px !important;
+}
+
+.wpc-body--compact .wpc-main-info {
+    flex-direction: column !important;
+    gap: 4px !important;
 }
 
 .wpc-body--compact .wpc-description-col,
@@ -591,28 +564,20 @@
     width: 100% !important;
 }
 
-.wpc-body--compact .wpc-name {
-    font-size: 12.5px;
+.wpc-body--compact .wpc-name  { font-size: 12px; margin-bottom: 2px; }
+.wpc-body--compact .wpc-desc  { 
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.4;
     margin-bottom: 4px;
 }
+.wpc-body--compact .wpc-btn   { padding: 7px 10px; font-size: 10px; margin-top: auto; }
 
-.wpc-body--compact .wpc-price-sale {
-    font-size: 13px;
-}
 
-.wpc-body--compact .wpc-btn {
-    padding: 6px 8px;
-    font-size: 10.5px;
-    margin-top: 6px;
-}
-
-/* No image placeholder */
-.wpc-no-image {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    background: #f0f2f5;
-    height: 120px;
-    max-height: 120px;
+/* Ensure images don't stretch card */
+.wpc-image {
+    max-width: 100%;
 }

@@ -6,18 +6,18 @@
 
     const cfg = window.woochatConfig || {};
 
-    const AJAX_URL = cfg.ajaxUrl || '';
-    const NONCE = cfg.nonce || '';
-    const WC_NONCE = cfg.wcNonce || '';
-    const STORE_URL = cfg.storeUrl || '';
-    const SESSION_ID = cfg.sessionId || '';
-    const IS_LOGGED_IN = cfg.isLoggedIn || false;
-    const LOGIN_URL = cfg.loginUrl || '';
-    const USERNAME = cfg.username || '';
-    const TITLE = cfg.widgetTitle || 'Store Assistant';
-    const PLACEHOLDER = cfg.placeholder || 'Type a message...';
-    const WELCOME_MSG = cfg.welcomeMsg || 'Hello! How can I help?';
-    const PRIMARY = cfg.primaryColor || '#3b6ef8';
+    const AJAX_URL     = cfg.ajaxUrl     || '';
+    const NONCE        = cfg.nonce       || '';
+    const WC_NONCE     = cfg.wcNonce     || '';
+    const STORE_URL    = cfg.storeUrl    || '';
+    const SESSION_ID   = cfg.sessionId   || '';
+    const IS_LOGGED_IN = cfg.isLoggedIn  || false;
+    const LOGIN_URL    = cfg.loginUrl    || '';
+    const USERNAME     = cfg.username    || '';
+    const TITLE        = cfg.widgetTitle  || 'Store Assistant';
+    const PLACEHOLDER  = cfg.placeholder  || 'Type a message...';
+    const WELCOME_MSG  = cfg.welcomeMsg   || 'Hello! How can I help?';
+    const PRIMARY      = cfg.primaryColor || '#3b6ef8';
 
     const STORE_API = STORE_URL + '/wp-json/wc/store/v1';
 
@@ -25,7 +25,7 @@
     // 1. BUILD WIDGET HTML — matches screenshots exactly
     // ─────────────────────────────────────────────────────────────────────────
     const container = document.createElement('div');
-    container.id = 'woochat-container';
+    container.id    = 'woochat-container';
     container.innerHTML = `
 
         <!-- Bubble: blue circle with chat icon (screenshot 1) -->
@@ -88,14 +88,14 @@
     // ─────────────────────────────────────────────────────────────────────────
     // 2. DOM REFERENCES
     // ─────────────────────────────────────────────────────────────────────────
-    const bubble = document.getElementById('woochat-bubble');
-    const win = document.getElementById('woochat-window');
+    const bubble   = document.getElementById('woochat-bubble');
+    const win      = document.getElementById('woochat-window');
     const messages = document.getElementById('woochat-messages');
-    const input = document.getElementById('woochat-input');
-    const sendBtn = document.getElementById('woochat-send');
+    const input    = document.getElementById('woochat-input');
+    const sendBtn  = document.getElementById('woochat-send');
     const closeBtn = document.getElementById('woochat-close');
 
-    let isOpen = false;
+    let isOpen    = false;
     let isLoading = false;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -150,51 +150,51 @@
     // ─────────────────────────────────────────────────────────────────────────
     function proxyToAgent(message) {
         fetch(AJAX_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            method:      'POST',
+            headers:     { 'Content-Type': 'application/x-www-form-urlencoded' },
             credentials: 'same-origin',
             body: new URLSearchParams({
-                action: 'woochat_message',
-                nonce: NONCE,
-                message: message,
+                action:     'woochat_message',
+                nonce:      NONCE,
+                message:    message,
                 session_id: SESSION_ID,
-                wc_nonce: WC_NONCE,
+                wc_nonce:   WC_NONCE,
             }),
         })
-            .then(r => r.json())
-            .then(data => {
-                setLoading(false);
-                if (!data.success) {
-                    appendMessage('bot', '⚠️ ' + (data.data || 'Something went wrong. Please try again.'));
-                    return;
-                }
-                const reply = data.data.response || '';
-                const action = data.data.action || null;
+        .then(r => r.json())
+        .then(data => {
+            setLoading(false);
+            if (!data.success) {
+                appendMessage('bot', '⚠️ ' + (data.data || 'Something went wrong. Please try again.'));
+                return;
+            }
+            const reply  = data.data.response || '';
+            const action = data.data.action   || null;
 
-                if (action === 'prompt_login') {
-                    appendMessage('bot', formatResponse(reply));
-                    appendLoginPrompt();
-                    return;
-                }
+            if (action === 'prompt_login') {
+                appendMessage('bot', formatResponse(reply));
+                appendLoginPrompt();
+                return;
+            }
 
-                // Parse out [PRODUCT_CARD] blocks before rendering text
-                const { text: cleanText, cards } = extractProductCards(reply);
-                if (cleanText.trim()) {
-                    appendMessage('bot', formatResponse(cleanText));
-                }
-                if (cards.length === 1) {
-                    appendProductCard(cards[0]);
-                } else if (cards.length > 1) {
-                    appendProductCardRow(cards);
-                }
+            // Parse out [PRODUCT_CARD] blocks before rendering text
+            const { text: cleanText, cards } = extractProductCards(reply);
+            if (cleanText.trim()) {
+                appendMessage('bot', formatResponse(cleanText));
+            }
+            if (cards.length === 1) {
+                appendProductCard(cards[0]);
+            } else if (cards.length > 1) {
+                appendProductCardRow(cards);
+            }
 
-                if (action === 'cart_updated') refreshWooCart();
-            })
-            .catch(err => {
-                setLoading(false);
-                console.error('[WooChat]', err);
-                appendMessage('bot', '⚠️ Could not reach the assistant. Please check your connection.');
-            });
+            if (action === 'cart_updated') refreshWooCart();
+        })
+        .catch(err => {
+            setLoading(false);
+            console.error('[WooChat]', err);
+            appendMessage('bot', '⚠️ Could not reach the assistant. Please check your connection.');
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -221,9 +221,9 @@
         return storeApiRequest('POST', '/cart/add-item', body);
     }
 
-    function viewCart() { return storeApiRequest('GET', '/cart'); }
+    function viewCart()              { return storeApiRequest('GET',    '/cart'); }
     function removeFromCart(itemKey) { return storeApiRequest('DELETE', '/cart/items/' + itemKey); }
-    function applyCoupon(code) { return storeApiRequest('POST', '/cart/coupons', { code }); }
+    function applyCoupon(code)       { return storeApiRequest('POST',   '/cart/coupons', { code }); }
 
     function refreshWooCart() {
         if (typeof jQuery !== 'undefined') {
@@ -253,12 +253,12 @@
     function setLoading(loading) {
         isLoading = loading;
         sendBtn.disabled = loading;
-        input.disabled = loading;
+        input.disabled   = loading;
 
         const existing = document.getElementById('woochat-typing');
         if (loading && !existing) {
             const t = document.createElement('div');
-            t.id = 'woochat-typing';
+            t.id        = 'woochat-typing';
             t.className = 'woochat-typing';
             t.innerHTML = '<span></span><span></span><span></span>';
             messages.appendChild(t);
@@ -270,13 +270,27 @@
     }
 
     // Converts agent markdown-lite response to HTML
+    // Matches screenshot: "* **Product Name** - price (In stock)"
     function formatResponse(text) {
         if (!text) return '';
         let s = escHtml(text);
+        // Bold: **text**
         s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Italic: *text* — but NOT bullet points (handled separately)
         s = s.replace(/(?<!\n)\*(?!\s)(.*?)\*/g, '<em>$1</em>');
+        // Newlines to <br>
         s = s.replace(/\n/g, '<br>');
-        s = s.replace(/(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        // Markdown Links: [text](url)
+        s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s<")]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        // Clickable URLs (that aren't already part of an a-tag from the markdown regex)
+        // We use a replacer function to avoid breaking HTML attributes
+        s = s.replace(/(https?:\/\/[^\s<")]+)/g, function(match, p1, offset, string) {
+            // If it's preceded by href=" or >, it's likely already an HTML link
+            if (offset > 0 && string.charAt(offset - 1) === '"') return match;
+            if (offset > 0 && string.charAt(offset - 1) === '>') return match;
+            return '<a href="' + match + '" target="_blank" rel="noopener noreferrer">' + match + '</a>';
+        });
         return s;
     }
 
@@ -286,6 +300,10 @@
         return d.innerHTML;
     }
 
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRODUCT CARD — parse [PRODUCT_CARD]...[/PRODUCT_CARD] from agent reply
+    // ─────────────────────────────────────────────────────────────────────────
     function extractProductCards(text) {
         const cards = [];
         const regex = /\[PRODUCT_CARD\]([\s\S]*?)\[\/PRODUCT_CARD\]/g;
@@ -301,29 +319,58 @@
         return { text: clean, cards };
     }
 
-    // Build a single card's inner HTML — used by both single and row modes
+    // Build card HTML — matches screenshot: full image top, desc left, price right
     function buildCardHTML(card, compact) {
-        const nameText = card.name ? escHtml(card.name) : 'Product';
-        const priceText = escHtml(card.sale_price || card.regular_price || '—');
-        
-        return (
-            '<div class="wpc-label">PRODUCT PROFILE</div>' +
-            '<div class="wpc-body' + (compact ? ' wpc-body--compact' : '') + '">' +
-                '<div class="wpc-description-col">' +
-                    '<div class="wpc-name"><strong>' + nameText + '</strong></div>' +
-                    (card.description ? '<p class="wpc-desc">' + escHtml(card.description) + '</p>' : '') +
-                '</div>' +
-                '<div class="wpc-price-col">' +
-                    '<div class="wpc-price-row">' +
-                        '<span class="wpc-price-sale">\u20b9' + priceText + '</span>' +
-                    '</div>' +
-                    (!compact && card.sku ? '<div class="wpc-price-row"><span class="wpc-label-sm">SKU:</span> <span class="wpc-sku">' + escHtml(card.sku) + '</span></div>' : '') +
-                    (card.permalink ? '<a href="' + escHtml(card.permalink) + '" target="_blank" rel="noopener noreferrer" class="wpc-btn">\uD83C\uDF10 VIEW DETAILS</a>' : '') +
-                '</div>' +
-            '</div>'
-        );
-    }
+        const hasDiscount = card.sale_price &&
+            card.sale_price !== card.regular_price &&
+            parseFloat(card.sale_price) > 0 &&
+            parseFloat(card.regular_price) > 0;
 
+        const discount = hasDiscount
+            ? Math.round((1 - parseFloat(card.sale_price) / parseFloat(card.regular_price)) * 100)
+            : 0;
+
+        const price     = hasDiscount ? card.sale_price    : (card.regular_price || card.sale_price || '');
+        const origPrice = hasDiscount ? card.regular_price : '';
+
+        // Image section — full width top
+        const imageHTML = card.image_url
+            ? '<div class="wpc-image-wrap"><img src="' + escHtml(card.image_url) + '" alt="' + escHtml(card.name) + '" class="wpc-image" loading="lazy"/></div>'
+            : '<div class="wpc-image-wrap wpc-no-image">🛍️</div>';
+
+        // Price section
+        const priceHTML =
+            (origPrice
+                ? '<div class="wpc-price-row"><span class="wpc-label-sm">REGULAR PRICE:</span><span class="wpc-price-old">\u20b9' + escHtml(origPrice) + '</span></div>'
+                : '') +
+            '<div class="wpc-price-row"><span class="wpc-label-sm' + (hasDiscount ? '' : '') + '">' + (hasDiscount ? 'SALE PRICE:' : 'PRICE:') + '</span>' +
+            '<span class="wpc-price-sale">\u20b9' + escHtml(price) +
+            (hasDiscount ? ' <span class="wpc-badge">' + discount + '% OFF</span>' : '') +
+            '</span></div>' +
+            (!compact && card.sku
+                ? '<div class="wpc-price-row"><span class="wpc-label-sm">SKU:</span><span class="wpc-sku">' + escHtml(card.sku) + '</span></div>'
+                : '');
+
+        const btnHTML = (card.permalink
+                ? '<a href="' + escHtml(card.permalink) + '" target="_blank" rel="noopener noreferrer" class="wpc-btn">\uD83C\uDF10 ' + (compact ? 'VIEW' : 'VIEW PRODUCT GALLERY') + '</a>'
+                : '');
+
+        // Description section
+        const descHTML =
+            '<div class="wpc-name">' + escHtml(card.name) + '</div>' +
+            (card.description
+                ? '<p class="wpc-desc">' + escHtml(card.description) + '</p>'
+                : '');
+
+        return imageHTML +
+            '<div class="wpc-body' + (compact ? ' wpc-body--compact' : '') + '">' +
+                '<div class="wpc-main-info">' +
+                    '<div class="wpc-description-col">' + descHTML + '</div>' +
+                    '<div class="wpc-price-col">' + priceHTML + '</div>' +
+                '</div>' +
+                btnHTML +
+            '</div>';
+    }
     // Single card — full width
     function appendProductCard(card) {
         const div = document.createElement('div');
@@ -356,8 +403,8 @@
         const link = e.target.closest('a[href*="action=logout"]');
         if (!link) return;
         navigator.sendBeacon(AJAX_URL, new URLSearchParams({
-            action: 'woochat_clear_session',
-            nonce: NONCE,
+            action:     'woochat_clear_session',
+            nonce:      NONCE,
             session_id: SESSION_ID,
         }));
     });
