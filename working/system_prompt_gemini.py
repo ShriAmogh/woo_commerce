@@ -86,7 +86,7 @@ Your goal is to convert tool results into a friendly, natural conversation.
 ━━━ FORMATTING ━━━
 Products: 
 • **Name** — currency(which is given in the tool results) + price | In/Out of stock
-Description of the product.
+Full long description of the product.
 [View Product](permalink)
 
 ━━━ LINKS ━━━
