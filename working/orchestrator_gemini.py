@@ -43,7 +43,7 @@ class GeminiOrchestrator:
 
         self.available_tools = {
             "list_products":          actions.list_products,
-            "search_products":        actions.search_products,
+            "search_products":        actions_db.search_products_vector,
             "get_product_details":    actions.get_product_details,
             "get_store_info":         actions.get_store_info,
             "list_categories":        actions.list_categories,
@@ -198,13 +198,13 @@ class GeminiOrchestrator:
 
             sku = item.get("sku") or ""
             
-            # Image handling
-            img_url = item.get("image_url") or ""
+            # Image handling (Vector DB uses 'image', standard API uses 'images')
+            img_url = item.get("image") or item.get("image_url") or ""
             if not img_url:
                 images = item.get("images")
                 if images and isinstance(images, list) and len(images) > 0:
                     img_url = images[0] if isinstance(images[0], str) else images[0].get("src")
-
+                    
             # Build card data
             card_data = {
                 "name": name,
