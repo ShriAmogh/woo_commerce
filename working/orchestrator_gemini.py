@@ -109,6 +109,7 @@ class GeminiOrchestrator:
             return f"{currency} {price}"
 
     def _format_variations(self, attributes, price, currency):
+        if not attributes: return []
         formatted = []
         f_price = self._format_price(price, currency)
         for attr in attributes:
@@ -135,7 +136,7 @@ class GeminiOrchestrator:
                 "stock": "In stock" if stock == "instock" else "Out of stock",
                 "description": self._clean_html(p.get("short_description") or p.get("description")),
                 "permalink": p.get("permalink"),
-                "variations": self._format_variations(p.get("attributes", []), price, currency)
+                "variations": self._format_variations(p.get("attributes") or [], price, currency)
             }
 
         # Helper to transform cart
