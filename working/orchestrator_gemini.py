@@ -97,16 +97,35 @@ class GeminiOrchestrator:
         clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"')
         return clean.strip()
 
+    CURRENCY_MAP = {
+        "INR": "₹",
+        "USD": "$",
+        "EUR": "€",
+        "GBP": "£",
+        "JPY": "¥",
+        "AUD": "A$",
+        "CAD": "C$",
+        "CHF": "CHF",
+        "CNY": "¥",
+        "SGD": "S$",
+    }
+
     def _format_price(self, price, currency):
         if price is None or price == "": return ""
         try:
             p = float(price)
-            cur_sym = currency if currency != "INR" else "₹"
-            if cur_sym == "₹":
-                return f"₹{p:,.2f}"
+            # Normalize currency code
+            currency = (currency or "INR").upper()
+            
+            # Get symbol from map or fallback to code
+            cur_sym = self.CURRENCY_MAP.get(currency, currency)
+            
+            # Formatting (Symbol-prefixed for common symbols, space-separated for codes)
+            if cur_sym in self.CURRENCY_MAP.values() and len(cur_sym) <= 2:
+                return f"{cur_sym}{p:,.2f}"
             return f"{cur_sym} {p:,.2f}"
         except:
-            return f"{currency} {price}"
+            return f"{currency or 'INR'} {price}"
 
     def _format_variations(self, attributes, price, currency):
         if not attributes: return []
@@ -128,7 +147,7 @@ class GeminiOrchestrator:
         # Helper to transform a single product
         def transform_product(p):
             price = p.get("price") or p.get("regular_price")
-            currency = p.get("currency", "INR")
+            currency = p.get("currency") or "INR"
             stock = p.get("stock_status") or ("instock" if p.get("in_stock") else "outofstock")
             return {
                 "name": p.get("name"),
