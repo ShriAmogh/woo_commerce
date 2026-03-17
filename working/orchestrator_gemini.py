@@ -89,6 +89,120 @@ class GeminiOrchestrator:
 
         return text
 
+    def _clean_html(self, text):
+        if not text: return ""
+        # Strip HTML tags
+        clean = re.sub('<[^<]+?>', '', text)
+        # Decode common entities and clean whitespace
+        clean = clean.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"')
+        return clean.strip()
+
+    def _format_price(self, price, currency):
+        if price is None or price == "": return ""
+        try:
+            p = float(price)
+            cur_sym = currency if currency != "INR" else "₹"
+            if cur_sym == "₹":
+                return f"₹{p:,.2f}"
+            return f"{cur_sym} {p:,.2f}"
+        except:
+            return f"{currency} {price}"
+
+    def _format_variations(self, attributes, price, currency):
+        formatted = []
+        f_price = self._format_price(price, currency)
+        for attr in attributes:
+            name = attr.get("name")
+            options = attr.get("options", [])
+            for opt in options:
+                formatted.append(f"{name}: {opt} — {f_price}")
+        return formatted
+
+    def _prepare_results_for_llm(self, tool_results):
+        """
+        Transforms raw tool JSON into a curated, clean, LLM-ready object.
+        """
+        if not tool_results: return None
+
+        # Helper to transform a single product
+        def transform_product(p):
+            price = p.get("price") or p.get("regular_price")
+            currency = p.get("currency", "INR")
+            stock = p.get("stock_status") or ("instock" if p.get("in_stock") else "outofstock")
+            return {
+                "name": p.get("name"),
+                "price": self._format_price(price, currency),
+                "stock": "In stock" if stock == "instock" else "Out of stock",
+                "description": self._clean_html(p.get("short_description") or p.get("description")),
+                "permalink": p.get("permalink"),
+                "variations": self._format_variations(p.get("attributes", []), price, currency)
+            }
+
+        # Helper to transform cart
+        def transform_cart(c):
+            if not c or not isinstance(c, dict): return c
+            currency = c.get("currency", "INR")
+            items = []
+            for item in c.get("line_items", []):
+                items.append({
+                    "name": item.get("name"),
+                    "qty": item.get("quantity"),
+                    "price": self._format_price(item.get("price"), currency),
+                    "total": self._format_price(item.get("total"), currency)
+                })
+            return {
+                "items": items,
+                "subtotal": self._format_price(c.get("totals", {}).get("total_items"), currency),
+                "total": self._format_price(c.get("totals", {}).get("total_price"), currency),
+                "checkout_url": c.get("checkout_url")
+            }
+
+        # Helper to transform store info
+        def transform_store_info(s):
+            if not s or not isinstance(s, dict): return s
+            return {
+                "name": s.get("name"),
+                "description": self._clean_html(s.get("description")),
+                "url": s.get("url"),
+                "policies": [self._clean_html(p.get("content")) for p in s.get("policies", [])]
+            }
+
+        # Handle flat list of products
+        if isinstance(tool_results, list):
+            return [transform_product(item) for item in tool_results if isinstance(item, dict) and "id" in item]
+
+        # Handle single result or dict of results
+        if isinstance(tool_results, dict):
+            # If it's a single product result
+            if "id" in tool_results and "name" in tool_results:
+                return transform_product(tool_results)
+            
+            # If it's a cart result
+            if "line_items" in tool_results or "totals" in tool_results:
+                return transform_cart(tool_results)
+
+            # If it's store info
+            if "name" in tool_results and "url" in tool_results:
+                return transform_store_info(tool_results)
+
+            # Handle multi-tool results map
+            prepared = {}
+            for key, val in tool_results.items():
+                if isinstance(val, list):
+                    prepared[key] = [transform_product(i) for i in val if isinstance(i, dict) and "id" in i]
+                elif isinstance(val, dict):
+                    if "line_items" in val:
+                        prepared[key] = transform_cart(val)
+                    elif "id" in val and "name" in val:
+                        prepared[key] = transform_product(val)
+                    else:
+                        prepared[key] = val
+                else:
+                    prepared[key] = val
+            return prepared
+
+        return tool_results
+
     # ─────────────────────────────────────────────────────────────────────────
     # Gemini router call
     # ─────────────────────────────────────────────────────────────────────────
@@ -126,9 +240,12 @@ class GeminiOrchestrator:
     # ─────────────────────────────────────────────────────────────────────────
     def _summarize_results(self, user_query: str, tool_results):
         try:
+            # Prepare results for LLM (clean HTML, format prices, etc.)
+            clean_results = self._prepare_results_for_llm(tool_results)
+            
             summarizer_input = (
                 f"User Request: {user_query}\n\n"
-                f"Tool Results (JSON):\n{json.dumps(tool_results, indent=2, ensure_ascii=False)}"
+                f"Curated Tool Results:\n{json.dumps(clean_results, indent=2, ensure_ascii=False)}"
             )
 
             response = self.client.models.generate_content(
