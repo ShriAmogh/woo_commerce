@@ -331,13 +331,15 @@ class GeminiOrchestrator:
                     
             # Build card data
             card_data = {
+                "id": p_id,
                 "name": name,
                 "description": desc,
                 "regular_price": reg_price,
                 "sale_price": sal_price,
                 "sku": sku,
                 "image_url": img_url,
-                "permalink": item.get("permalink") or ""
+                "permalink": item.get("permalink") or "",
+                "attributes": item.get("attributes", [])
             }
             
             appended_cards += f"\n\n[PRODUCT_CARD]\n{json.dumps(card_data, indent=2)}\n[/PRODUCT_CARD]"
