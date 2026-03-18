@@ -358,6 +358,7 @@
     background: #f0ede8;
     overflow: hidden;
     height: 190px;
+    min-height: 190px; /* Ensure consistency */
 }
 
 .wpc-image {
@@ -375,141 +376,126 @@
     justify-content: center;
     font-size: 40px;
     background: #f5f5f3;
-    height: 120px;
+    height: 190px;
+    min-height: 190px;
 }
 
-/* Card body — two column layout like screenshot */
+/* Card body — vertical stack like screenshot */
 .wpc-body {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px 16px 16px;
+    padding: 14px 14px 14px;
     min-width: 0;
     width: 100%;
-    flex: 1; /* Stretch to fill card height */
-    min-height: 120px; /* Force minimum space for name/price/button */
+    flex: 1;
 }
 
-.wpc-main-info {
-    display: flex;
-    flex-direction: row;
-    gap: 14px;
-    width: 100%;
-}
-
-.wpc-description-col {
-    flex: 1.1;
-    min-width: 0;
-}
-
-.wpc-price-col {
-    flex: 0.9;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    justify-content: flex-start;
-}
-
-/* DESCRIPTION: label + product name */
 .wpc-name {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 700;
     color: #111;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     word-break: break-word;
     overflow-wrap: break-word;
-    line-height: 1.3;
+    line-height: 1.25;
 }
 
-.wpc-name strong {
-    font-weight: 800;
+.wpc-price-block {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.wpc-price-old {
+    font-size: 13px;
+    color: #888;
+    text-decoration: line-through;
+    font-weight: 400;
+}
+
+.wpc-price-sale {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
 }
 
 .wpc-desc {
-    font-size: 12.5px;
-    color: #4b5563;
-    line-height: 1.6;
-    margin: 0;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.5;
+    margin: 0 0 12px; /* Reduced from 16px to accommodate variants */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-/* Price rows — matches screenshot layout */
-.wpc-price-row {
+.wpc-variants {
+    margin-bottom: 12px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    line-height: 1.3;
+    gap: 4px;
 }
 
-.wpc-label-sm {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: #111;
-    text-transform: uppercase;
+.wpc-variant-item {
+    font-size: 11px;
+    color: #777;
+    line-height: 1.4;
 }
 
-/* Strikethrough regular price — like $219.99 in screenshot */
-.wpc-price-old {
-    font-size: 13px;
-    color: #6b7280;
-    text-decoration: line-through;
-    font-weight: 500;
-}
-
-/* Sale price bold — like $169.99 (23% OFF) */
-.wpc-price-sale {
-    font-size: 13px;
-    font-weight: 800;
-    color: #111;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-
-.wpc-badge {
-    background: #1a3a1a;
-    color: #fff;
-    font-size: 9.5px;
+.wpc-variant-label {
     font-weight: 700;
-    padding: 2px 5px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
+    color: #555;
 }
 
-.wpc-sku {
-    font-size: 11.5px;
-    color: #374151;
-    font-family: "SF Mono", "Fira Code", monospace;
-    font-weight: 500;
+/* Actions — side-by-side buttons */
+.wpc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px; /* Fixed spacing instead of auto if we want to hug content */
 }
 
-/* Dark green VIEW PRODUCT GALLERY button — matches screenshot exactly */
+/* Base button style (pill) */
 .wpc-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    margin-top: auto; /* Push to bottom */
-    padding: 9px 12px;
-    background: #1c3a1c;
-    color: #ffffff !important;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
     text-decoration: none !important;
-    border-radius: 7px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: background 0.15s;
-    width: 100%;
+    transition: all 0.2s ease;
+    cursor: pointer;
     box-sizing: border-box;
+    width: 100%;
+    border: none;
     text-align: center;
 }
 
-.wpc-btn:hover {
-    background: #2d5a2d;
+/* Primary button (Black/Dark) */
+.wpc-add-to-cart {
+    background: #1a1a1b;
+    color: #ffffff !important;
+}
+
+.wpc-add-to-cart:hover {
+    background: #333333;
+    transform: translateY(-1px);
+}
+
+/* Secondary button (Outline) */
+.wpc-view-product {
+    background: #ffffff;
+    color: #1a1a1b !important;
+    border: 1px solid #e1e4e8 !important;
+}
+
+.wpc-view-product:hover {
+    background: #f8f9fa;
+    border-color: #d1d5da !important;
 }
 
 /* ── Product Card Row (horizontal scroll for multiple cards) ─────────────── */
@@ -519,22 +505,24 @@
     gap: 10px;
     overflow-x: auto;
     overflow-y: visible;
-    padding: 10px 4px 24px; /* Increased bottom padding to avoid scrollbar overlap */
+    padding: 10px 4px 20px; /* Reduced bottom padding */
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     width: 100%;
     flex-shrink: 0;
-    align-items: stretch; /* Force all cards to equal height */
+    align-items: stretch !important; /* Force cards to same height */
 }
 
 .woochat-card-row::-webkit-scrollbar       { height: 4px; }
 .woochat-card-row::-webkit-scrollbar-track { background: transparent; }
 .woochat-card-row::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 4px; }
 
-/* Compact card in row — fixed width */
+/* Compact card in row — fixed width to show 2 cards nearly full */
 .woochat-product-card--compact {
-    min-width: 210px;
-    max-width: 210px;
+    min-width: 235px;
+    max-width: 235px;
+    height: auto !important;
+    min-height: 0 !important;
     flex-shrink: 0;
     scroll-snap-align: start;
     display: flex;
@@ -542,39 +530,31 @@
 }
 
 .woochat-product-card--compact .wpc-image-wrap,
-.woochat-product-card--compact .wpc-image {
-    height: 130px;
+.woochat-product-card--compact .wpc-image,
+.woochat-product-card--compact .wpc-no-image {
+    height: 200px !important;
+    min-height: 200px !important;
 }
 
-/* Compact body — single column */
+/* Compact body — matches screenshot layout */
 .wpc-body--compact {
-    flex-direction: column !important;
-    gap: 6px !important;
-    padding: 10px 12px 12px !important;
+    padding: 12px 14px 12px !important; /* Reduced bottom padding from 14px to 12px */
+    height: auto !important;
 }
 
-.wpc-body--compact .wpc-main-info {
-    flex-direction: column !important;
-    gap: 4px !important;
+.wpc-body--compact .wpc-name {
+    font-size: 14px;
+    margin-bottom: 6px;
 }
 
-.wpc-body--compact .wpc-description-col,
-.wpc-body--compact .wpc-price-col {
-    flex: unset !important;
-    width: 100% !important;
+.wpc-body--compact .wpc-desc {
+    margin-bottom: 12px;
 }
 
-.wpc-body--compact .wpc-name  { font-size: 12px; margin-bottom: 2px; }
-.wpc-body--compact .wpc-desc  { 
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 11px;
-    line-height: 1.4;
-    margin-bottom: 4px;
+.wpc-body--compact .wpc-btn {
+    padding: 10px 14px;
+    font-size: 13px;
 }
-.wpc-body--compact .wpc-btn   { padding: 7px 10px; font-size: 10px; margin-top: auto; }
 
 
 /* Ensure images don't stretch card */

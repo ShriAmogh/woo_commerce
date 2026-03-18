@@ -25,6 +25,8 @@ define( 'WOOCHAT_PLUGIN_FILE', __FILE__ );
 
 // ─── Load Components ──────────────────────────────────────────────────────────
 require_once WOOCHAT_PLUGIN_DIR . 'includes/api-proxy.php';
+require_once WOOCHAT_PLUGIN_DIR . 'includes/rest-api.php';
+require_once WOOCHAT_PLUGIN_DIR . 'includes/cart-sync.php';
 
 // ─── Activation Hook ──────────────────────────────────────────────────────────
 register_activation_hook( __FILE__, 'woochat_activate' );

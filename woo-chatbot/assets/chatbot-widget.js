@@ -319,16 +319,12 @@
         return { text: clean, cards };
     }
 
-    // Build card HTML — matches screenshot: full image top, desc left, price right
+    // Build card HTML — premium vertical layout
     function buildCardHTML(card, compact) {
         const hasDiscount = card.sale_price &&
             card.sale_price !== card.regular_price &&
             parseFloat(card.sale_price) > 0 &&
             parseFloat(card.regular_price) > 0;
-
-        const discount = hasDiscount
-            ? Math.round((1 - parseFloat(card.sale_price) / parseFloat(card.regular_price)) * 100)
-            : 0;
 
         const price     = hasDiscount ? card.sale_price    : (card.regular_price || card.sale_price || '');
         const origPrice = hasDiscount ? card.regular_price : '';
@@ -338,37 +334,37 @@
             ? '<div class="wpc-image-wrap"><img src="' + escHtml(card.image_url) + '" alt="' + escHtml(card.name) + '" class="wpc-image" loading="lazy"/></div>'
             : '<div class="wpc-image-wrap wpc-no-image">🛍️</div>';
 
-        // Price section
-        const priceHTML =
-            (origPrice
-                ? '<div class="wpc-price-row"><span class="wpc-label-sm">REGULAR PRICE:</span><span class="wpc-price-old">\u20b9' + escHtml(origPrice) + '</span></div>'
-                : '') +
-            '<div class="wpc-price-row"><span class="wpc-label-sm' + (hasDiscount ? '' : '') + '">' + (hasDiscount ? 'SALE PRICE:' : 'PRICE:') + '</span>' +
-            '<span class="wpc-price-sale">\u20b9' + escHtml(price) +
-            (hasDiscount ? ' <span class="wpc-badge">' + discount + '% OFF</span>' : '') +
-            '</span></div>' +
-            (!compact && card.sku
-                ? '<div class="wpc-price-row"><span class="wpc-label-sm">SKU:</span><span class="wpc-sku">' + escHtml(card.sku) + '</span></div>'
-                : '');
+        // Price formatting
+        const priceHTML = 
+            (origPrice ? '<span class="wpc-price-old">\u20b9' + escHtml(origPrice) + '</span>' : '') +
+            '<span class="wpc-price-sale">\u20b9' + escHtml(price) + '</span>';
 
-        const btnHTML = (card.permalink
-                ? '<a href="' + escHtml(card.permalink) + '" target="_blank" rel="noopener noreferrer" class="wpc-btn">\uD83C\uDF10 ' + (compact ? 'VIEW' : 'VIEW PRODUCT GALLERY') + '</a>'
-                : '');
+        // Buttons
+        const cartBtn = '<button type="button" class="wpc-btn wpc-add-to-cart" data-name="' + escHtml(card.name) + '">Add to Cart</button>';
+        const viewBtn = card.permalink
+                ? '<a href="' + escHtml(card.permalink) + '" target="_blank" rel="noopener noreferrer" class="wpc-btn wpc-view-product">View Product</a>'
+                : '';
 
-        // Description section
-        const descHTML =
-            '<div class="wpc-name">' + escHtml(card.name) + '</div>' +
-            (card.description
-                ? '<p class="wpc-desc">' + escHtml(card.description) + '</p>'
-                : '');
+        // Variants/Attributes section
+        let variantsHTML = '';
+        if (card.attributes && Array.isArray(card.attributes) && card.attributes.length > 0) {
+            variantsHTML = '<div class="wpc-variants">';
+            card.attributes.forEach(attr => {
+                const options = Array.isArray(attr.options) ? attr.options.join(', ') : (attr.options || '');
+                if (options) {
+                    variantsHTML += '<div class="wpc-variant-item"><span class="wpc-variant-label">' + escHtml(attr.name) + ':</span> ' + escHtml(options) + '</div>';
+                }
+            });
+            variantsHTML += '</div>';
+        }
 
         return imageHTML +
             '<div class="wpc-body' + (compact ? ' wpc-body--compact' : '') + '">' +
-                '<div class="wpc-main-info">' +
-                    '<div class="wpc-description-col">' + descHTML + '</div>' +
-                    '<div class="wpc-price-col">' + priceHTML + '</div>' +
-                '</div>' +
-                btnHTML +
+                '<div class="wpc-name">' + escHtml(card.name) + '</div>' +
+                (card.description ? '<p class="wpc-desc">' + escHtml(card.description) + '</p>' : '') +
+                variantsHTML +
+                '<div class="wpc-price-block">' + priceHTML + '</div>' +
+                '<div class="wpc-actions">' + cartBtn + viewBtn + '</div>' +
             '</div>';
     }
     // Single card — full width
@@ -399,14 +395,30 @@
     // ─────────────────────────────────────────────────────────────────────────
     // 8. AUTO-CLEAR SESSION ON LOGOUT
     // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. GLOBAL EVENT LISTENERS
+    // ─────────────────────────────────────────────────────────────────────────
     document.addEventListener('click', function (e) {
-        const link = e.target.closest('a[href*="action=logout"]');
-        if (!link) return;
-        navigator.sendBeacon(AJAX_URL, new URLSearchParams({
-            action:     'woochat_clear_session',
-            nonce:      NONCE,
-            session_id: SESSION_ID,
-        }));
+        // 1. Auto-clear session on logout
+        const logoutLink = e.target.closest('a[href*="action=logout"]');
+        if (logoutLink) {
+            navigator.sendBeacon(AJAX_URL, new URLSearchParams({
+                action:     'woochat_clear_session',
+                nonce:      NONCE,
+                session_id: SESSION_ID,
+            }));
+            return;
+        }
+
+        // 2. Add to Cart button bridge
+        const cartBtn = e.target.closest('.wpc-add-to-cart');
+        if (cartBtn) {
+            const productName = cartBtn.getAttribute('data-name');
+            if (productName) {
+                input.value = 'Add ' + productName + ' to my cart';
+                form.dispatchEvent(new Event('submit'));
+            }
+        }
     });
 
 })();
