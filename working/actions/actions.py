@@ -93,16 +93,27 @@ def clear_user_context():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_cart_id(session_id: str = "default"):
+    """
+    Retrieves the draft order ID for a session. 
+    Tries local cache first, then fetches from the PHP endpoint.
+    """
     global _session_orders
-    if session_id not in _session_orders:
-        logging.info(f"Creating new cart (order) for session {session_id}...")
-        response = woo_post("orders", {"status": "pending"})
-        if response.status_code == 201:
-            _session_orders[session_id] = response.json().get("id")
-            logging.info(f"Created cart ID: {_session_orders[session_id]}")
-        else:
-            logging.error(f"Error creating cart: {response.text}")
-    return _session_orders.get(session_id)
+    if session_id in _session_orders:
+        return _session_orders[session_id]
+    
+    base_url, key, secret, auth = _get_woo_config()
+    url = f"{base_url}/wp-json/woo-chatbot/v1/cart/get"
+    try:
+        response = requests.get(url, params={"session_id": session_id}, auth=auth, verify=False, timeout=10)
+        if response.status_code == 200:
+            order_id = response.json().get("order_id")
+            if order_id:
+                _session_orders[session_id] = order_id
+                return order_id
+    except Exception as e:
+        logging.error(f"Error fetching cart ID from PHP: {e}")
+        
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -393,49 +404,37 @@ def add_to_cart(product_id, quantity: int = 1, session_id: str = "default"):
         if stock_info.get("stock_quantity") < quantity:
             return {"error": f"Only {stock_info.get('stock_quantity')} units available."}
 
-    order_id = get_cart_id(session_id)
-    if not order_id:
-        return {"error": "Failed to retrieve or create cart."}
 
-    order = get_order(order_id)
-    if "error" in order:
-        return order
-
-    line_items = order.get("line_items", [])
-    update_lines = []
-    found = False
-
-    for item in line_items:
-        if str(item.get("product_id")) == str(product_id):
-            update_lines.append({"id": item["line_id"], "quantity": int(item["quantity"]) + int(quantity)})
-            found = True
-        else:
-            update_lines.append({"id": item["line_id"], "quantity": item["quantity"]})
-
-    if not found:
-        update_lines.append({"product_id": product_id, "quantity": quantity})
-
-    response = woo_put(f"orders/{order_id}", {"line_items": update_lines})
-    if response.status_code == 200:
-        o = response.json()
-        base_url = _get_woo_config()[0]
-        return {
-            "Currency":     o.get("currency"),
-            "checkout_url": f"{base_url}/checkout/",   # real checkout page
-            "line_items": [
-                {
-                    "line_id":    item.get("id"),
-                    "name":       item.get("name"),
-                    "product_id": item.get("product_id"),
-                    "price":      item.get("price"),
-                    "quantity":   item.get("quantity"),
-                    "total":      item.get("total"),
-                    "images":     [{"src": item.get("image", {}).get("src")}] if item.get("image") else []
-                } for item in o.get("line_items", [])
-            ]
-        }
-    logging.error(f"Failed to add to cart: {response.text}")
-    return {"error": response.text}
+    # Use the new PHP-managed cart endpoint
+    base_url, key, secret, auth = _get_woo_config()
+    url = f"{base_url}/wp-json/woo-chatbot/v1/cart/add"
+    
+    payload = {
+        "session_id": session_id,
+        "product_id": product_id,
+        "quantity": quantity
+    }
+    
+    try:
+        response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            order_id = data.get("order_id")
+            # Update local cache for view_cart compatibility
+            if order_id:
+                _session_orders[session_id] = order_id
+                
+            return {
+                "success": True,
+                "checkout_url": data.get("checkout_url") or f"{base_url}/checkout/",
+                "item_count": data.get("item_count"),
+                "total": data.get("total")
+            }
+        logging.error(f"Failed to add to cart via PHP: {response.text}")
+        return {"error": response.text}
+    except Exception as e:
+        logging.error(f"Exception in add_to_cart (PHP): {e}")
+        return {"error": str(e)}
 
 
 def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"):
@@ -446,42 +445,29 @@ def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"
     product_id = resolved_id
 
     logging.info(f"Removing product {product_id} from cart for session {session_id}...")
-    order_id = get_cart_id(session_id)
-    if not order_id:
-        return {"error": "No active cart found."}
-
-    order = get_order(order_id)
-    if "error" in order:
-        return order
-
-    update_lines = []
-    for item in order.get("line_items", []):
-        if str(item.get("product_id")) == str(product_id):
-            new_qty = max(0, int(item["quantity"]) - int(quantity)) if quantity != -1 else 0
-            update_lines.append({"id": item["line_id"], "quantity": new_qty})
-        else:
-            update_lines.append({"id": item["line_id"], "quantity": item["quantity"]})
-
-    response = woo_put(f"orders/{order_id}", {"line_items": update_lines})
-    if response.status_code == 200:
-        o = response.json()
-        base_url = _get_woo_config()[0]
-        return {
-            "Currency":     o.get("currency"),
-            "checkout_url": f"{base_url}/checkout/",   # real checkout page
-            "line_items": [
-                {
-                    "line_id":    item.get("id"),
-                    "name":       item.get("name"),
-                    "product_id": item.get("product_id"),
-                    "price":      item.get("price"),
-                    "quantity":   item.get("quantity"),
-                    "total":      item.get("total"),
-                } for item in o.get("line_items", [])
-            ]
-        }
-    logging.error(f"Failed to remove from cart: {response.text}")
-    return {"error": response.text}
+    # Use the new PHP-managed cart endpoint for removal
+    base_url, key, secret, auth = _get_woo_config()
+    url = f"{base_url}/wp-json/woo-chatbot/v1/cart/remove"
+    
+    payload = {
+        "session_id": session_id,
+        "product_id": product_id
+    }
+    
+    try:
+        response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "success": True,
+                "total": data.get("total"),
+                "checkout_url": f"{base_url}/checkout/"
+            }
+        logging.error(f"Failed to remove from cart via PHP: {response.text}")
+        return {"error": response.text}
+    except Exception as e:
+        logging.error(f"Exception in remove_from_cart (PHP): {e}")
+        return {"error": str(e)}
 
 
 def apply_coupon(coupon_code: str, session_id: str = "default"):
