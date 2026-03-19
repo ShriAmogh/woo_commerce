@@ -3,6 +3,8 @@ import logging
 import re
 import os
 import requests
+import functools
+from typing import Optional
 from google import genai
 from dotenv import load_dotenv, find_dotenv
 
@@ -34,29 +36,8 @@ class GeminiOrchestrator:
         self.system_instruction = system_prompt
         logging.info(f"🔧 API: {self.api_mode} | 🤖 Model: {self.model_id}")
 
-        try:
-            self.mcp         = WooCommerceMCPClient()
-            self.mcp_actions = actions_mcp.MCPActions(self.mcp)
-            logging.info("✅ MCP connected")
-        except Exception as e:
-            logging.warning(f"⚠️ MCP unavailable, falling back to REST: {e}")
-
-        self.available_tools = {
-            "list_products":          actions.list_products,
-            "search_products":        actions_db.search_products_vector,
-            "get_product_details":    actions.get_product_details,
-            "get_store_info":         actions.get_store_info,
-            "list_categories":        actions.list_categories,
-            "get_product_variations": actions.get_product_variations,
-            "list_brands":            actions.list_brands,
-            "get_products_by_brand":  actions_db.get_products_by_brand,
-            "search_products_by_brand": actions_db.search_products_by_brand,
-            "check_stock_status":     actions.check_stock_status,
-            "view_cart":              actions.view_cart,
-            "add_to_cart":            actions.add_to_cart,
-            "remove_from_cart":       actions.remove_from_cart,
-            "apply_coupon":           actions.apply_coupon,
-        }
+        # NOTE: MCP is now created per-request in handle_query.
+        # This avoids hardcoding a single store's credentials at startup.
 
         self.AUTHENTICATED_TOOLS = {"view_cart", "add_to_cart", "remove_from_cart", "apply_coupon"}
         self.store_url  = os.getenv("WOO_URL", "Store")
@@ -410,6 +391,36 @@ class GeminiOrchestrator:
     def handle_query(self, user_input: str, session_context: dict = None):
         logging.info(f"User query: {user_input} | Session: {session_context}")
 
+        # ━━ Extract per-store config from session_context ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        store_config: Optional[dict] = (
+            session_context.get("store_config") if session_context else None
+        )
+        # Normalise empty dicts / dicts with empty strings to None (use .env fallback)
+        if store_config and not any(store_config.get(k) for k in ("woo_url", "consumer_key", "consumer_secret")):
+            store_config = None
+
+        # ━━ Build per-request tool map with config bound via functools.partial ━━━━━━━━
+        def bind(fn):
+            """Return fn with config= keyword pre-filled."""
+            return functools.partial(fn, config=store_config)
+
+        available_tools = {
+            "list_products":            bind(actions.list_products),
+            "search_products":          actions_db.search_products_vector,   # vector DB — no config needed
+            "get_product_details":      bind(actions.get_product_details),
+            "get_store_info":           bind(actions.get_store_info),
+            "list_categories":          bind(actions.list_categories),
+            "get_product_variations":   bind(actions.get_product_variations),
+            "list_brands":              bind(actions.list_brands),
+            "get_products_by_brand":    actions_db.get_products_by_brand,     # vector DB — no config needed
+            "search_products_by_brand": actions_db.search_products_by_brand,  # vector DB — no config needed
+            "check_stock_status":       bind(actions.check_stock_status),
+            "view_cart":                bind(actions.view_cart),
+            "add_to_cart":              bind(actions.add_to_cart),
+            "remove_from_cart":         bind(actions.remove_from_cart),
+            "apply_coupon":             bind(actions.apply_coupon),
+        }
+
         # 1. Router call
         raw_response = self._call_gemini(user_input, session_context)
         if not raw_response:
@@ -426,7 +437,7 @@ class GeminiOrchestrator:
                 for i, call in enumerate(data["tools"]):
                     t_name = call.get("tool") or call.get("name")
                     t_args = call.get("args", {})
-                    if not t_name or t_name not in self.available_tools:
+                    if not t_name or t_name not in available_tools:
                         continue
                     logging.info(f"Multi-tool [{i+1}]: {t_name} args={t_args}")
 
@@ -437,7 +448,7 @@ class GeminiOrchestrator:
                         t_args["session_id"] = session_context.get("session_id", "default")
 
                     try:
-                        res = self.available_tools[t_name](**t_args)
+                        res = available_tools[t_name](**t_args)
                         self._update_context(t_name, res)
                         all_results[f"{i+1}_{t_name}"] = res
                     except Exception as e:
@@ -457,7 +468,7 @@ class GeminiOrchestrator:
             if tool_name:
                 args = data.get("args", {})
 
-                if tool_name not in self.available_tools:
+                if tool_name not in available_tools:
                     return f"Error: unknown tool '{tool_name}'."
 
                 logging.info(f"Tool: {tool_name} args={args}")
@@ -472,7 +483,7 @@ class GeminiOrchestrator:
                     args["session_id"] = session_context.get("session_id", "default")
 
                 try:
-                    result   = self.available_tools[tool_name](**args)
+                    result   = available_tools[tool_name](**args)
                     self._update_context(tool_name, result)
                     friendly = self._summarize_results(user_input, result)
                     # Inject product cards manually

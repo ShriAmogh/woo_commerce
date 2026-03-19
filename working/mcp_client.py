@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import urllib3
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,22 +26,30 @@ class WooCommerceMCPClient:
         add_filter( 'woocommerce_mcp_allow_insecure_transport', '__return_true' );
     """
 
-    def __init__(self):
-        woo_url = os.getenv("WOO_URL", "woo-test.local")
+    def __init__(self, config: Optional[dict] = None):
+        """
+        :param config: Optional per-request store credentials dict with keys:
+                       'woo_url', 'consumer_key', 'consumer_secret'.
+                       When None, falls back to environment variables (local dev).
+        """
+        if config:
+            woo_url         = config.get("woo_url", os.getenv("WOO_URL", "woo-test.local"))
+            consumer_key    = config.get("consumer_key", "")
+            consumer_secret = config.get("consumer_secret", "")
+        else:
+            woo_url         = os.getenv("WOO_URL", "woo-test.local")
+            consumer_key    = os.getenv("WOO_CONSUMER_KEY", "")
+            consumer_secret = os.getenv("WOO_CONSUMER_SECRET", "")
+
         if not woo_url.startswith(("http://", "https://")):
             woo_url = f"https://{woo_url}"
 
-        self.endpoint = os.getenv(
-            "MCP_ENDPOINT",
-            f"{woo_url}/wp-json/woocommerce/mcp"
-        )
-
-        consumer_key    = os.getenv("WOO_CONSUMER_KEY", "")
-        consumer_secret = os.getenv("WOO_CONSUMER_SECRET", "")
+        self.endpoint = f"{woo_url}/wp-json/woocommerce/mcp"
 
         if not consumer_key or not consumer_secret:
             raise ValueError(
-                "WOO_CONSUMER_KEY and WOO_CONSUMER_SECRET must be set in .env"
+                "WooCommerce consumer_key and consumer_secret are required "
+                "(pass a config dict or set WOO_CONSUMER_KEY / WOO_CONSUMER_SECRET in .env)"
             )
 
         self.headers = {
@@ -48,7 +57,7 @@ class WooCommerceMCPClient:
             "X-MCP-API-Key": f"{consumer_key}:{consumer_secret}",
         }
 
-        # Handle Tunnel / Live Link Authentication
+        # Handle Tunnel / Live Link Authentication (still env-based — shared infra)
         live_user = os.getenv("WOO_LIVE_LINK_USER", "")
         live_pass = os.getenv("WOO_LIVE_LINK_PASS", "")
         self.auth = (live_user, live_pass) if live_user else None

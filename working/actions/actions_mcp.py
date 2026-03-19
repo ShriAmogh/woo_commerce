@@ -1,26 +1,34 @@
 import logging
 import json
+from typing import Optional
 from . import actions_db
 from . import actions
 
+
 class MCPActions:
-    def __init__(self, mcp_client):
+    def __init__(self, config: Optional[dict] = None):
         """
         Initializes the MCP Actions wrapper.
-        :param mcp_client: An instance of WooCommerceMCPClient.
+
+        :param config: Optional per-store credentials dict with keys:
+                       'woo_url', 'consumer_key', 'consumer_secret'.
+                       When None, falls back to environment variables (local dev).
         """
-        self.mcp = mcp_client
+        # Import here to avoid circular imports at module level
+        from mcp_client import WooCommerceMCPClient
+        self.mcp = WooCommerceMCPClient(config=config)
+        self.config = config
 
     def list_products(self, **kwargs):
         """Wrapper for MCP woocommerce-products-list ability with category resolution."""
         logging.info(f"Calling MCP woocommerce-products-list with args: {kwargs}")
-        
+
         # Resolve category_id name to ID if needed
         category_id = kwargs.get("category_id")
         if category_id and isinstance(category_id, str) and not category_id.isdigit():
             logging.info(f"Attempting to resolve category name '{category_id}' to an ID...")
             try:
-                categories = self.list_categories() # Changed to self.list_categories()
+                categories = self.list_categories()
                 if isinstance(categories, list):
                     for cat in categories:
                         if cat.get("name", "").lower() == category_id.lower() or cat.get("slug", "").lower() == category_id.lower():
@@ -54,7 +62,7 @@ class MCPActions:
     def get_product_details(self, product_id_or_name):
         """Wrapper for MCP woocommerce-products-get ability with name-to-ID resolution."""
         logging.info(f"Calling MCP woocommerce-products-get with: {product_id_or_name}")
-        
+
         # 1. Resolve Name to ID if needed
         final_id = product_id_or_name
         if not str(product_id_or_name).isdigit():
@@ -67,10 +75,9 @@ class MCPActions:
                 logging.warning(f"Could not resolve '{product_id_or_name}' to an ID. Proceeding anyway.")
 
         try:
-            # MCP 'woocommerce-products-get' tool expects 'id' as an integer
             if str(final_id).isdigit():
                 final_id = int(final_id)
-                
+
             res = self.mcp.call_tool("woocommerce-products-get", {"id": final_id})
             if "structuredContent" in res:
                 return res["structuredContent"]
@@ -119,7 +126,6 @@ class MCPActions:
         """Wrapper for MCP woocommerce-products-list ability to filter by brand slug."""
         logging.info(f"Calling MCP woocommerce-products-list (brand search) for: {brand_slug}")
         try:
-            # Assuming the 'search' parameter can effectively filter by brand slug
             res = self.mcp.call_tool("woocommerce-products-list", {"search": brand_slug})
             if "structuredContent" in res:
                 return res["structuredContent"]
@@ -132,7 +138,6 @@ class MCPActions:
         """Wrapper for MCP woocommerce-products-list ability to search within a brand."""
         logging.info(f"Calling MCP woocommerce-products-list for brand: {brand} and query: {query}")
         try:
-            # Combining brand and query for a broader search
             res = self.mcp.call_tool("woocommerce-products-list", {"search": f"{brand} {query}"})
             if "structuredContent" in res:
                 return res["structuredContent"]
