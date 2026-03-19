@@ -61,7 +61,12 @@ async def health_check():
 
 # ─── Chat ─────────────────────────────────────────────────────────────────────
 @app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(
+    req: ChatRequest,
+    x_woochat_store_url:        Optional[str] = Header(None),
+    x_woochat_consumer_key:     Optional[str] = Header(None),
+    x_woochat_consumer_secret:  Optional[str] = Header(None),
+):
     try:
         session_id = req.session_context.session_id or "default"
         now        = time.time()
@@ -81,6 +86,19 @@ async def chat_endpoint(req: ChatRequest):
         session_timestamps[session_id] = now
 
         context_dict = req.session_context.model_dump()
+
+        # ✅ Multi-tenant: inject per-store credentials from WordPress headers
+        if x_woochat_store_url or x_woochat_consumer_key or x_woochat_consumer_secret:
+            context_dict["store_config"] = {
+                "woo_url":         x_woochat_store_url     or "",
+                "consumer_key":    x_woochat_consumer_key  or "",
+                "consumer_secret": x_woochat_consumer_secret or "",
+            }
+            logger.info(f"📦 Store config received from headers: {x_woochat_store_url}")
+        else:
+            context_dict["store_config"] = None  # use .env fallback
+            logger.info("⚠️  No store headers — falling back to .env credentials")
+
         reply = sessions[session_id].handle_query(
             user_input=req.message,
             session_context=context_dict
