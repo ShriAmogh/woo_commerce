@@ -25,6 +25,12 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'woochat_rest_remove_from_cart',
         'permission_callback' => '__return_true',
     ] );
+
+    register_rest_route( 'woo-chatbot/v1', '/cart/update', [
+        'methods'             => 'POST',
+        'callback'            => 'woochat_rest_update_cart',
+        'permission_callback' => '__return_true',
+    ] );
 } );
 
 /**
@@ -100,11 +106,13 @@ function woochat_rest_get_cart( $request ) {
 
 /**
  * REST Callback: Removes a product from the draft order.
+ * Supports partial removal (quantity) and variation matching.
  */
 function woochat_rest_remove_from_cart( $request ) {
     $params     = $request->get_json_params();
     $session_id = isset( $params['session_id'] ) ? sanitize_text_field( $params['session_id'] ) : '';
     $product_id = isset( $params['product_id'] ) ? (int) $params['product_id'] : 0;
+    $quantity   = isset( $params['quantity'] )   ? (int) $params['quantity']   : -1; // -1 means remove all
     
     if ( empty( $session_id ) || ! $product_id ) {
         return new WP_Error( 'missing_params', 'Session ID and Product ID are required.', [ 'status' => 400 ] );
@@ -116,8 +124,23 @@ function woochat_rest_remove_from_cart( $request ) {
     }
 
     foreach ( $order->get_items() as $item_id => $item ) {
-        if ( (int) $item->get_product_id() === $product_id ) {
-            $order->remove_item( $item_id );
+        $item_product_id   = (int) $item->get_product_id();
+        $item_variation_id = (int) $item->get_variation_id();
+
+        if ( $item_product_id === $product_id || $item_variation_id === $product_id ) {
+            if ( $quantity === -1 ) {
+                $order->remove_item( $item_id );
+            } else {
+                $current_qty = $item->get_quantity();
+                $new_qty     = max( 0, $current_qty - $quantity );
+                
+                if ( $new_qty === 0 ) {
+                    $order->remove_item( $item_id );
+                } else {
+                    $item->set_quantity( $new_qty );
+                    $item->save();
+                }
+            }
             break;
         }
     }
@@ -126,9 +149,64 @@ function woochat_rest_remove_from_cart( $request ) {
     $order->save();
 
     return rest_ensure_response( [
-        'success'  => true,
-        'order_id' => $order->get_id(),
-        'total'    => $order->get_total(),
+        'success'    => true,
+        'order_id'   => $order->get_id(),
+        'item_count' => $order->get_item_count(),
+        'total'      => $order->get_total(),
+    ] );
+}
+
+/**
+ * REST Callback: Updates a product's absolute quantity in the draft order.
+ */
+function woochat_rest_update_cart( $request ) {
+    $params     = $request->get_json_params();
+    $session_id = isset( $params['session_id'] ) ? sanitize_text_field( $params['session_id'] ) : '';
+    $product_id = isset( $params['product_id'] ) ? (int) $params['product_id'] : 0;
+    $quantity   = isset( $params['quantity'] )   ? (int) $params['quantity']   : 0;
+
+    if ( empty( $session_id ) || ! $product_id ) {
+        return new WP_Error( 'missing_params', 'Session ID and Product ID are required.', [ 'status' => 400 ] );
+    }
+
+    $order = woochat_get_or_create_draft_order( $session_id );
+    if ( is_wp_error( $order ) ) {
+        return $order;
+    }
+
+    $found = false;
+    foreach ( $order->get_items() as $item_id => $item ) {
+        $item_product_id   = (int) $item->get_product_id();
+        $item_variation_id = (int) $item->get_variation_id();
+
+        if ( $item_product_id === $product_id || $item_variation_id === $product_id ) {
+            if ( $quantity <= 0 ) {
+                $order->remove_item( $item_id );
+            } else {
+                $item->set_quantity( $quantity );
+                $item->save();
+            }
+            $found = true;
+            break;
+        }
+    }
+
+    // If not found and quantity > 0, add it
+    if ( ! $found && $quantity > 0 ) {
+        $product = wc_get_product( $product_id );
+        if ( $product ) {
+            $order->add_product( $product, $quantity );
+        }
+    }
+
+    $order->calculate_totals();
+    $order->save();
+
+    return rest_ensure_response( [
+        'success'    => true,
+        'order_id'   => $order->get_id(),
+        'item_count' => $order->get_item_count(),
+        'total'      => $order->get_total(),
     ] );
 }
 
