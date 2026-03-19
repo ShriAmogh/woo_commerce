@@ -451,7 +451,9 @@ def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"
     
     payload = {
         "session_id": session_id,
-        "product_id": product_id
+        "product_id": product_id,
+        "quantity": quantity,
+        
     }
     
     try:
@@ -460,13 +462,48 @@ def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"
             data = response.json()
             return {
                 "success": True,
+                "item_count": data.get("item_count"),
                 "total": data.get("total"),
-                "checkout_url": f"{base_url}/checkout/"
+                "checkout_url": data.get("checkout_url") or f"{base_url}/checkout/",
             }
         logging.error(f"Failed to remove from cart via PHP: {response.text}")
         return {"error": response.text}
     except Exception as e:
         logging.error(f"Exception in remove_from_cart (PHP): {e}")
+        return {"error": str(e)}
+
+
+def update_cart_quantity(product_id, quantity: int, session_id: str = "default"):
+    """Updates the absolute quantity of a product in the cart."""
+    resolved_id = resolve_product_id(product_id)
+    if not resolved_id:
+        return {"error": f"Could not find product: {product_id}"}
+    product_id = resolved_id
+
+    logging.info(f"Updating product {product_id} to quantity {quantity} for session {session_id}...")
+    base_url, key, secret, auth = _get_woo_config()
+    url = f"{base_url}/wp-json/woo-chatbot/v1/cart/update"
+    
+    payload = {
+        "session_id": session_id,
+        "product_id": product_id,
+        "quantity": quantity
+    }
+    
+    try:
+        response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "success": True,
+                "item_count": data.get("item_count"),
+                "total": data.get("total"),
+                "checkout_url": data.get("checkout_url") or f"{base_url}/checkout/",
+            }
+        logging.error(f"Failed to update cart via PHP: {response.text}")
+        return {"error": response.text}
+    except Exception as e:
+        logging.error(f"Exception in update_cart (PHP): {e}")
         return {"error": str(e)}
 
 
