@@ -51,7 +51,12 @@ function woochat_handle_message() {
         return;
     }
 
-    // ── 4. Build auth context server-side ─────────────────────────────────────
+    // ── 4. Read per-store WooCommerce credentials from wp_options ──────────────
+    $woo_url = get_option( 'woochat_woo_url',            '' );
+    $woo_ck  = get_option( 'woochat_woo_consumer_key',   '' );
+    $woo_cs  = get_option( 'woochat_woo_consumer_secret', '' );
+
+    // ── 5. Build auth context server-side ─────────────────────────────────────
     //    is_logged_in and user_id are determined here — the browser cannot
     //    spoof these values since this runs on the WordPress server.
     $is_logged_in = is_user_logged_in();
@@ -69,19 +74,23 @@ function woochat_handle_message() {
                             : '',
     ];
 
-    // ── 5. Build payload ──────────────────────────────────────────────────────
+    // ── 6. Build payload ──────────────────────────────────────────────────────
     $payload = [
         'message'         => $message,
         'session_context' => $session_context,
     ];
 
-    // ── 6. POST to Railway agent ───────────────────────────────────────────────
+    // ── 7. POST to Railway agent (with per-store credentials as headers) ───────
     $response = wp_remote_post(
         trailingslashit( $agent_url ) . 'chat',
         [
             'headers'     => [
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
+                'Content-Type'              => 'application/json',
+                'Accept'                    => 'application/json',
+                // ✅ Multi-tenant: inject this store's WooCommerce credentials
+                'X-WooChat-Store-URL'       => $woo_url,
+                'X-WooChat-Consumer-Key'    => $woo_ck,
+                'X-WooChat-Consumer-Secret' => $woo_cs,
             ],
             'body'        => wp_json_encode( $payload ),
             'timeout'     => 30,

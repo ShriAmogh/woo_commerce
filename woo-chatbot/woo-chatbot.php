@@ -52,12 +52,16 @@ function woochat_activate() {
     }
 
     // Set default options on first activation
-    add_option( 'woochat_agent_url',     '' );
-    add_option( 'woochat_enabled',       '1' );
-    add_option( 'woochat_widget_title',  'Store Assistant' );
-    add_option( 'woochat_placeholder',   'Ask me anything...' );
-    add_option( 'woochat_welcome_msg',   'Hi! I\'m your shopping assistant. How can I help you today?' );
-    add_option( 'woochat_primary_color', '#2271b1' );
+    add_option( 'woochat_agent_url',          '' );
+    add_option( 'woochat_enabled',            '1' );
+    add_option( 'woochat_widget_title',       'Store Assistant' );
+    add_option( 'woochat_placeholder',        'Ask me anything...' );
+    add_option( 'woochat_welcome_msg',        'Hi! I\'m your shopping assistant. How can I help you today?' );
+    add_option( 'woochat_primary_color',      '#2271b1' );
+    // Multi-tenant: per-store WooCommerce API credentials
+    add_option( 'woochat_woo_url',           '' );
+    add_option( 'woochat_woo_consumer_key',   '' );
+    add_option( 'woochat_woo_consumer_secret', '' );
 }
 
 // ─── Deactivation Hook ────────────────────────────────────────────────────────
@@ -81,25 +85,33 @@ function woochat_add_settings_page() {
 // ─── Register Settings ────────────────────────────────────────────────────────
 add_action( 'admin_init', 'woochat_register_settings' );
 function woochat_register_settings() {
-    register_setting( 'woochat_settings', 'woochat_agent_url',     [ 'sanitize_callback' => 'esc_url_raw' ] );
-    register_setting( 'woochat_settings', 'woochat_enabled',       [ 'sanitize_callback' => 'sanitize_text_field' ] );
-    register_setting( 'woochat_settings', 'woochat_widget_title',  [ 'sanitize_callback' => 'sanitize_text_field' ] );
-    register_setting( 'woochat_settings', 'woochat_placeholder',   [ 'sanitize_callback' => 'sanitize_text_field' ] );
-    register_setting( 'woochat_settings', 'woochat_welcome_msg',   [ 'sanitize_callback' => 'sanitize_text_field' ] );
-    register_setting( 'woochat_settings', 'woochat_primary_color', [ 'sanitize_callback' => 'sanitize_hex_color' ] );
+    register_setting( 'woochat_settings', 'woochat_agent_url',            [ 'sanitize_callback' => 'esc_url_raw' ] );
+    register_setting( 'woochat_settings', 'woochat_enabled',              [ 'sanitize_callback' => 'sanitize_text_field' ] );
+    register_setting( 'woochat_settings', 'woochat_widget_title',         [ 'sanitize_callback' => 'sanitize_text_field' ] );
+    register_setting( 'woochat_settings', 'woochat_placeholder',          [ 'sanitize_callback' => 'sanitize_text_field' ] );
+    register_setting( 'woochat_settings', 'woochat_welcome_msg',          [ 'sanitize_callback' => 'sanitize_text_field' ] );
+    register_setting( 'woochat_settings', 'woochat_primary_color',        [ 'sanitize_callback' => 'sanitize_hex_color' ] );
+    // Multi-tenant WooCommerce API credentials
+    register_setting( 'woochat_settings', 'woochat_woo_url',              [ 'sanitize_callback' => 'esc_url_raw' ] );
+    register_setting( 'woochat_settings', 'woochat_woo_consumer_key',     [ 'sanitize_callback' => 'sanitize_text_field' ] );
+    register_setting( 'woochat_settings', 'woochat_woo_consumer_secret',  [ 'sanitize_callback' => 'sanitize_text_field' ] );
 }
 
 // ─── Render Settings Page ─────────────────────────────────────────────────────
 function woochat_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
-    $saved         = isset( $_GET['settings-updated'] ) && $_GET['settings-updated'];
-    $agent_url     = get_option( 'woochat_agent_url',     '' );
-    $enabled       = get_option( 'woochat_enabled',       '1' );
-    $widget_title  = get_option( 'woochat_widget_title',  'Store Assistant' );
-    $placeholder   = get_option( 'woochat_placeholder',   'Ask me anything...' );
-    $welcome_msg   = get_option( 'woochat_welcome_msg',   'Hi! How can I help you today?' );
-    $primary_color = get_option( 'woochat_primary_color', '#2271b1' );
+    $saved            = isset( $_GET['settings-updated'] ) && $_GET['settings-updated'];
+    $agent_url        = get_option( 'woochat_agent_url',           '' );
+    $enabled          = get_option( 'woochat_enabled',             '1' );
+    $widget_title     = get_option( 'woochat_widget_title',        'Store Assistant' );
+    $placeholder      = get_option( 'woochat_placeholder',         'Ask me anything...' );
+    $welcome_msg      = get_option( 'woochat_welcome_msg',         'Hi! How can I help you today?' );
+    $primary_color    = get_option( 'woochat_primary_color',       '#2271b1' );
+    // Multi-tenant credentials
+    $woo_url          = get_option( 'woochat_woo_url',             '' );
+    $woo_consumer_key = get_option( 'woochat_woo_consumer_key',    '' );
+    $woo_consumer_secret = get_option( 'woochat_woo_consumer_secret', '' );
 
     // Live connection test
     $connection_status = '';
@@ -149,6 +161,44 @@ function woochat_render_settings_page() {
                                 <?php checked( $enabled, '1' ); ?> />
                             Show chatbot widget on all storefront pages
                         </label>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 class="title">WooCommerce API Credentials</h2>
+            <p class="description" style="margin-bottom:12px;">
+                These credentials allow the AI agent to access <strong>this store's</strong> products, categories, and cart.
+                Generate keys at <strong>WooCommerce → Settings → Advanced → REST API</strong> (Read/Write permission required).
+            </p>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><label for="woochat_woo_url">Store URL</label></th>
+                    <td>
+                        <input type="url" id="woochat_woo_url" name="woochat_woo_url"
+                            value="<?php echo esc_attr( $woo_url ); ?>"
+                            placeholder="https://yourstore.com"
+                            class="regular-text" />
+                        <p class="description">The public URL of this WooCommerce store (e.g. <code>https://yourstore.com</code>).</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="woochat_woo_consumer_key">Consumer Key</label></th>
+                    <td>
+                        <input type="text" id="woochat_woo_consumer_key" name="woochat_woo_consumer_key"
+                            value="<?php echo esc_attr( $woo_consumer_key ); ?>"
+                            placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="regular-text" autocomplete="off" />
+                        <p class="description">WooCommerce REST API Consumer Key. Starts with <code>ck_</code>.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="woochat_woo_consumer_secret">Consumer Secret</label></th>
+                    <td>
+                        <input type="password" id="woochat_woo_consumer_secret" name="woochat_woo_consumer_secret"
+                            value="<?php echo esc_attr( $woo_consumer_secret ); ?>"
+                            placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="regular-text" autocomplete="off" />
+                        <p class="description">WooCommerce REST API Consumer Secret. Starts with <code>cs_</code>.</p>
                     </td>
                 </tr>
             </table>
@@ -241,6 +291,9 @@ function woochat_render_settings_page() {
             <li><?php echo ! empty( $agent_url ) ? '✅' : '❌'; ?> Agent URL configured</li>
             <li><?php echo $connection_status === 'ok' ? '✅' : '❌'; ?> Agent reachable</li>
             <li><?php echo $enabled ? '✅' : '❌'; ?> Chatbot widget enabled</li>
+            <li><?php echo ! empty( $woo_url ) ? '✅' : '❌'; ?> Store URL configured</li>
+            <li><?php echo ! empty( $woo_consumer_key ) ? '✅' : '❌'; ?> Consumer Key configured</li>
+            <li><?php echo ! empty( $woo_consumer_secret ) ? '✅' : '❌'; ?> Consumer Secret configured</li>
         </ul>
     </div>
     <?php
@@ -326,16 +379,30 @@ function woochat_get_session_id() {
 add_action( 'admin_notices', 'woochat_admin_notices' );
 function woochat_admin_notices() {
     if ( ! current_user_can( 'manage_options' ) ) return;
-    if ( ! empty( get_option( 'woochat_agent_url', '' ) ) ) return;
-
     $settings_url = admin_url( 'options-general.php?page=woo-chatbot' );
-    echo '<div class="notice notice-warning is-dismissible">
-        <p>
-            <strong>WooCommerce AI Chatbot:</strong>
-            Agent URL not configured.
-            <a href="' . esc_url( $settings_url ) . '">Configure it here →</a>
-        </p>
-    </div>';
+
+    if ( empty( get_option( 'woochat_agent_url', '' ) ) ) {
+        echo '<div class="notice notice-warning is-dismissible">
+            <p>
+                <strong>WooCommerce AI Chatbot:</strong>
+                Agent URL not configured.
+                <a href="' . esc_url( $settings_url ) . '">Configure it here →</a>
+            </p>
+        </div>';
+    }
+
+    $missing_creds = empty( get_option( 'woochat_woo_consumer_key', '' ) )
+                  || empty( get_option( 'woochat_woo_consumer_secret', '' ) )
+                  || empty( get_option( 'woochat_woo_url', '' ) );
+    if ( $missing_creds ) {
+        echo '<div class="notice notice-warning is-dismissible">
+            <p>
+                <strong>WooCommerce AI Chatbot:</strong>
+                WooCommerce API credentials not configured — the chatbot cannot access your store data.
+                <a href="' . esc_url( $settings_url ) . '">Configure credentials →</a>
+            </p>
+        </div>';
+    }
 }
 
 // ─── Plugin Action Links ───────────────────────────────────────────────────────
