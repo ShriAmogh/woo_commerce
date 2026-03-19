@@ -18,7 +18,8 @@ TOOL_DESCRIPTIONS = """
 - check_stock_status(product_id): Real-time stock check for a specific product.
 - view_cart(): Show current cart contents and total.
 - add_to_cart(product_id, quantity?): Add a product to cart. Accepts name or ID.
-- remove_from_cart(product_id, quantity?): Remove item from cart.
+- update_cart_quantity(product_id, quantity): Update the absolute quantity of an item in the cart.
+- remove_from_cart(product_id, quantity?): Remove item from cart. If quantity is omitted, removes the entire item.
 - apply_coupon(code): Apply a coupon/discount code to the cart.
 """
 
