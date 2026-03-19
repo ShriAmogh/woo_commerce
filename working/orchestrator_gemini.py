@@ -391,9 +391,13 @@ class GeminiOrchestrator:
     def handle_query(self, user_input: str, session_context: dict = None):
         logging.info(f"User query: {user_input} | Session: {session_context}")
 
-        # ━━ Extract per-store config from session_context ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # ━━ Extract per-store config & user context from session_context ━━━━━━━━━━━━━━━
         store_config: Optional[dict] = (
             session_context.get("store_config") if session_context else None
+        )
+        # Extract user_id for cart association
+        user_id: Optional[int] = (
+            session_context.get("user_id") if session_context else None
         )
         # Normalise empty dicts / dicts with empty strings to None (use .env fallback)
         if store_config and not any(store_config.get(k) for k in ("woo_url", "consumer_key", "consumer_secret")):
@@ -446,6 +450,7 @@ class GeminiOrchestrator:
                             all_results[f"{i+1}_{t_name}"] = {"error": "Login required."}
                             continue
                         t_args["session_id"] = session_context.get("session_id", "default")
+                        t_args["user_id"]    = user_id
 
                     try:
                         res = available_tools[t_name](**t_args)
@@ -481,6 +486,7 @@ class GeminiOrchestrator:
                         self.history.append({"role": "model", "parts": [{"text": friendly}]})
                         return friendly
                     args["session_id"] = session_context.get("session_id", "default")
+                    args["user_id"]    = user_id
 
                 try:
                     result   = available_tools[tool_name](**args)

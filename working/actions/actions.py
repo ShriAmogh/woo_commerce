@@ -371,14 +371,14 @@ def view_cart(session_id: str = "default", config: Optional[dict] = None):
     return get_order(order_id, config=config)
 
 
-def add_to_cart(product_id, quantity: int = 1, session_id: str = "default", config: Optional[dict] = None):
+def add_to_cart(product_id, quantity: int = 1, session_id: str = "default", user_id: Optional[int] = None, config: Optional[dict] = None):
     """Adds a product to cart. Validates stock first."""
     resolved_id = resolve_product_id(product_id, config=config)
     if not resolved_id:
         return {"error": f"Could not find product: {product_id}"}
     product_id = resolved_id
 
-    logging.info(f"Adding product {product_id} (qty {quantity}) to cart for session {session_id}...")
+    logging.info(f"Adding product {product_id} (qty {quantity}) to cart for session {session_id} (user {user_id})...")
 
     # Stock validation
     stock_info = check_stock_status(product_id, config=config)
@@ -395,7 +395,8 @@ def add_to_cart(product_id, quantity: int = 1, session_id: str = "default", conf
     payload = {
         "session_id": session_id,
         "product_id": product_id,
-        "quantity": quantity
+        "quantity": quantity,
+        "user_id": user_id
     }
     try:
         response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
@@ -417,20 +418,21 @@ def add_to_cart(product_id, quantity: int = 1, session_id: str = "default", conf
         return {"error": str(e)}
 
 
-def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default", config: Optional[dict] = None):
+def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default", user_id: Optional[int] = None, config: Optional[dict] = None):
     """Removes a product from cart."""
     resolved_id = resolve_product_id(product_id, config=config)
     if not resolved_id:
         return {"error": f"Could not find product: {product_id}"}
     product_id = resolved_id
 
-    logging.info(f"Removing product {product_id} from cart for session {session_id}...")
+    logging.info(f"Removing product {product_id} from cart for session {session_id} (user {user_id})...")
     base_url, key, secret, auth = _get_woo_config(config)
     url = f"{base_url}/wp-json/woo-chatbot/v1/cart/remove"
     payload = {
         "session_id": session_id,
         "product_id": product_id,
         "quantity": quantity,
+        "user_id": user_id
     }
     try:
         response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
@@ -449,20 +451,21 @@ def remove_from_cart(product_id, quantity: int = -1, session_id: str = "default"
         return {"error": str(e)}
 
 
-def update_cart_quantity(product_id, quantity: int, session_id: str = "default", config: Optional[dict] = None):
+def update_cart_quantity(product_id, quantity: int, session_id: str = "default", user_id: Optional[int] = None, config: Optional[dict] = None):
     """Updates the absolute quantity of a product in the cart."""
     resolved_id = resolve_product_id(product_id, config=config)
     if not resolved_id:
         return {"error": f"Could not find product: {product_id}"}
     product_id = resolved_id
 
-    logging.info(f"Updating product {product_id} to quantity {quantity} for session {session_id}...")
+    logging.info(f"Updating product {product_id} to quantity {quantity} for session {session_id} (user {user_id})...")
     base_url, key, secret, auth = _get_woo_config(config)
     url = f"{base_url}/wp-json/woo-chatbot/v1/cart/update"
     payload = {
         "session_id": session_id,
         "product_id": product_id,
-        "quantity": quantity
+        "quantity": quantity,
+        "user_id": user_id
     }
     try:
         response = requests.post(url, json=payload, auth=auth, verify=False, timeout=15)
