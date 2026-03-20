@@ -39,7 +39,8 @@ class GeminiOrchestrator:
         # NOTE: MCP is now created per-request in handle_query.
         # This avoids hardcoding a single store's credentials at startup.
 
-        self.AUTHENTICATED_TOOLS = {"view_cart", "add_to_cart", "remove_from_cart", "apply_coupon"}
+        # Tools that REQUIRE session_id and user_id injection
+        self.AUTHENTICATED_TOOLS = ["add_to_cart", "remove_from_cart", "update_cart_quantity", "apply_coupon", "view_cart"]
         self.store_url  = os.getenv("WOO_URL", "Store")
         self.store_name = self.store_url.split("//")[-1].split(".")[0]
         self.history    = []

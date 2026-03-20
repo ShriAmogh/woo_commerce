@@ -78,7 +78,7 @@ def woo_delete(endpoint, params=None, config: Optional[dict] = None):
 # Cart helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_cart_id(session_id: str = "default", config: Optional[dict] = None):
+def get_cart_id(session_id: str = "default", user_id: Optional[int] = None, config: Optional[dict] = None):
     """
     Retrieves the draft order ID for a session.
     Tries local cache first, then fetches from the PHP endpoint.
@@ -90,7 +90,11 @@ def get_cart_id(session_id: str = "default", config: Optional[dict] = None):
     base_url, key, secret, auth = _get_woo_config(config)
     url = f"{base_url}/wp-json/woo-chatbot/v1/cart/get"
     try:
-        response = requests.get(url, params={"session_id": session_id}, auth=auth, verify=False, timeout=10)
+        params = {"session_id": session_id}
+        if user_id:
+            params["user_id"] = str(user_id)
+            
+        response = requests.get(url, params=params, auth=auth, verify=False, timeout=10)
         if response.status_code == 200:
             order_id = response.json().get("order_id")
             if order_id:
@@ -362,10 +366,10 @@ def get_order(order_id: int, config: Optional[dict] = None):
 # Cart tools
 # ─────────────────────────────────────────────────────────────────────────────
 
-def view_cart(session_id: str = "default", config: Optional[dict] = None):
+def view_cart(session_id: str = "default", user_id: Optional[int] = None, config: Optional[dict] = None):
     """Shows current cart contents."""
-    logging.info(f"Viewing cart for session {session_id}")
-    order_id = get_cart_id(session_id, config=config)
+    logging.info(f"Viewing cart for session {session_id} (user {user_id})")
+    order_id = get_cart_id(session_id, user_id=user_id, config=config)
     if not order_id:
         return {"error": "No active cart found."}
     return get_order(order_id, config=config)
