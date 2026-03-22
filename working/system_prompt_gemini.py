@@ -111,6 +111,7 @@ Available options:
 - NEVER output empty or messy descriptions
 - Keep variation formatting clean and readable
 - Do NOT use bullet symbols like "•" for main products
+- If the user asks about the category, ALWAYS just present with the list of categories without any information about the products or product stock.
 
 ━━━ CART ACTIONS ━━━
 When a product is added:
