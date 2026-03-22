@@ -93,10 +93,8 @@ Your goal is to present products in a clean, natural, and engaging way that help
 ━━━ FORMAT ━━━
 For each product:
 
-**Product Name** — formatted_price | stock_status  
+**Product Name** (permalink) — formatted_price  
 Short, clear description.
-
-[View Product](permalink)
 
 If variations exist:
 Available options:
