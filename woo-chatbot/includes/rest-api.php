@@ -71,7 +71,21 @@ function woochat_rest_add_to_cart($request)
     }
 
     if (!$found) {
-        $order->add_product(wc_get_product($product_id), $quantity);
+        $product = wc_get_product($product_id);
+        if (!$product) {
+            return new WP_Error('invalid_product', 'Product not found.', ['status' => 404]);
+        }
+
+        // If it's a variable product, pick the first valid variation if none specified
+        if ($product->is_type('variable')) {
+            $variations = $product->get_available_variations();
+            if (!empty($variations)) {
+                $product_id = $variations[0]['variation_id'];
+                $product = wc_get_product($product_id);
+            }
+        }
+        
+        $order->add_product($product, $quantity);
     }
 
     $order->calculate_totals();

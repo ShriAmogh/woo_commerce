@@ -13,8 +13,8 @@ add_action( 'template_redirect', 'woochat_sync_session_from_draft' );
  * Restores the cart from a draft order if the woochat_session cookie is present.
  */
 function woochat_sync_session_from_draft() {
-    // Only target checkout and cart pages for restoration
-    if ( ! is_checkout() && ! is_cart() ) {
+    // Only target storefront pages (not admin/rest/ajax)
+    if ( is_admin() || (defined('DOING_AJAX') && DOING_AJAX) || (defined('REST_REQUEST') && REST_REQUEST) ) {
         return;
     }
 
@@ -47,10 +47,14 @@ function woochat_sync_session_from_draft() {
         wc_load_cart();
     }
     
-    // Check if we already synced (avoid infinite loop or redundant work)
-    if ( WC()->cart->get_cart_contents_count() > 0 ) {
-        // Optional: Compare contents or check a session flag
-        if ( WC()->session->get( 'woochat_synced_order' ) === $order->get_id() ) {
+    // Check if we already synced this specific VERSION of the order
+    // Incorporating the modified timestamp ensures that if the chatbot changes
+    // the order (even if the ID is the same), we trigger a re-sync.
+    $modified_date = $order->get_date_modified();
+    $sync_key = $order->get_id() . '_' . ($modified_date ? $modified_date->getTimestamp() : time());
+
+    if ( WC()->cart->get_cart_contents_count() > 0 || WC()->session->get( 'woochat_synced_order_key' ) ) {
+        if ( WC()->session->get( 'woochat_synced_order_key' ) === $sync_key ) {
             return;
         }
     }
@@ -59,7 +63,7 @@ function woochat_sync_session_from_draft() {
 
     // 3. Populate session cart from order items
     foreach ( $order->get_items() as $item ) {
-        $product_id   = $item->get_product_id();   // Parent ID for variations
+        $product_id   = $item->get_product_id();
         $variation_id = (int) $item->get_variation_id();
         $quantity     = $item->get_quantity();
         
@@ -74,6 +78,6 @@ function woochat_sync_session_from_draft() {
         WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $variation );
     }
 
-    // Mark as synced to prevent re-syncing until the order changes
-    WC()->session->set( 'woochat_synced_order', $order->get_id() );
+    // Mark this specific version as synced
+    WC()->session->set( 'woochat_synced_order_key', $sync_key );
 }
