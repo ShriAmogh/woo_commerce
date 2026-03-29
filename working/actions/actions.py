@@ -121,6 +121,11 @@ def list_products(min_price=None, max_price=None, category_id=None, config: Opti
                         or cat.get("slug", "").lower() == category_id.lower():
                     category_id = str(cat["id"])
                     break
+        
+        # If still a string and not a digit, resolution failed.
+        if isinstance(category_id, str) and not category_id.isdigit():
+            logging.warning(f"Category '{category_id}' could not be resolved to an ID.")
+            return {"error": f"Category '{category_id}' not found. Please try a semantic search instead."}
 
     logging.info(f"Fetching products (min:{min_price} max:{max_price} cat:{category_id})...")
     params = {}
